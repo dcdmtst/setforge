@@ -1,0 +1,103 @@
+{
+  "version": 1,
+  "source": "User-provided original Farming UI reference (blue theme)",
+  "source_sha256": "2444586dd894d6cced7f90b109452b1ff18667671ebcc1e1285a162137d24674",
+  "source_size": [
+    5482,
+    2529
+  ],
+  "method": "Original RGB pixels and native group positions; warm foreground alpha separated from the blue UI; no generated or redrawn stars.",
+  "reference_card_width": 520,
+  "canvas_width": 560,
+  "canvas_height": 192,
+  "side_overhang": 20,
+  "above_card": 72,
+  "assets": [
+    {
+      "count": 1,
+      "file": "rating-stars-1.png",
+      "sha256": "d75e6b4c0911c6cbcdb4bdf2b91281840f0b647e2c951c36d294f431e7fc7b7d",
+      "source_box": [
+        1336,
+        666,
+        1896,
+        858
+      ],
+      "alpha_bounds": [
+        222,
+        26,
+        340,
+        143
+      ]
+    },
+    {
+      "count": 2,
+      "file": "rating-stars-2.png",
+      "sha256": "9f4d9e45045bc599c75efd26b16f12e59b56e03c7ad5c84f8a396f4db4455646",
+      "source_box": [
+        2467,
+        666,
+        3027,
+        858
+      ],
+      "alpha_bounds": [
+        163,
+        26,
+        398,
+        143
+      ]
+    },
+    {
+      "count": 3,
+      "file": "rating-stars-3.png",
+      "sha256": "6589a80791d04d3aa78de15c3ba935c7b9fd4e17e2bc4151acd3e4ab14a69c6a",
+      "source_box": [
+        3587,
+        666,
+        4147,
+        858
+      ],
+      "alpha_bounds": [
+        103,
+        26,
+        458,
+        143
+      ]
+    },
+    {
+      "count": 4,
+      "file": "rating-stars-4.png",
+      "sha256": "5c065aa954bb6de526a67ab3579af5db5b998f839ecb66af08fcb05206c4edee",
+      "source_box": [
+        2466,
+        1443,
+        3026,
+        1635
+      ],
+      "alpha_bounds": [
+        44,
+        26,
+        517,
+        143
+      ]
+    },
+    {
+      "count": 5,
+      "file": "rating-stars-5.png",
+      "sha256": "e9d4007f8cfa08ae63fa2521801ff6102107b99af5525efe60fdbadd0d58c699",
+      "source_box": [
+        3026,
+        1443,
+        3586,
+        1635
+      ],
+      "alpha_bounds": [
+        27,
+        14,
+        532,
+        163
+      ]
+    }
+  ],
+  "rights": "Reference UI artwork supplied for this task; excluded from the repository MIT code license."
+}

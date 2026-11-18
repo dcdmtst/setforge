@@ -1,10 +1,10 @@
-"""Neutral source-only skin; no screenshot-derived fonts or game assets."""
+"""Neutral lettering; reference star artwork is provided by rating_ui."""
 from functools import lru_cache
 from io import BytesIO
 import base64
 import html
-import math
 from PIL import Image, ImageDraw, ImageFont
+from .rating_ui import star_svg
 
 
 @lru_cache(maxsize=1)
@@ -39,12 +39,3 @@ def label_svg(text,ink_height=18):
     return (f'<svg class="game-type" width="{image.width}" height="{image.height}" '
             f'viewBox="0 0 {image.width} {image.height}" role="img" aria-label="{label}">'
             f'<title>{label}</title><image href="{uri}" width="{image.width}" height="{image.height}"/></svg>')
-
-
-def star_svg():
-    points=[]
-    for i in range(10):
-        radius=27 if i%2==0 else 13;angle=-math.pi/2+i*math.pi/5
-        points.append(f'{32+radius*math.cos(angle):.2f},{32+radius*math.sin(angle):.2f}')
-    return ('<svg class="star" viewBox="0 0 64 64" aria-hidden="true"><polygon points="'
-            +' '.join(points)+'" fill="#ffd64a" stroke="#c47b13" stroke-width="3" stroke-linejoin="round"/></svg>')

@@ -5,6 +5,7 @@ from urllib.parse import quote
 from .io import inside
 from .naming import names, display_title
 from .ui_skin import label_svg, star_svg, measure_label
+from .rating_ui import rating_group_svg
 from .nameplate import preflight, DEFAULT_POLICY
 from .timing import collect_timing, render_timing
 from .io import read,write
@@ -13,9 +14,9 @@ import copy
 STAR=star_svg()
 
 def stars_svg(value):
-    if not isinstance(value,int) or not 1<=value<=5:
+    if type(value) is not int or not 1<=value<=5:
         return '<span class="unassigned">Звёзды не назначены</span>'
-    return f'<span class="star-group" role="img" aria-label="{value} stars" data-stars="{value}">{STAR*value}</span>'
+    return f'<span class="star-group" role="img" aria-label="{value} stars" data-stars="{value}">{rating_group_svg(value)}</span>'
 
 
 def acceptance_text(state):
@@ -66,7 +67,7 @@ def label_review(run,state,mapping):
     if failed:
         body+='<p><b>Арт принят отдельно. Эти подписи ещё требуют правки:</b></p><table><thead><tr><th>Подпись</th><th>Ширина</th><th>Доступно</th><th>Статус</th></tr></thead><tbody>'+''.join(f'<tr><td>{esc(x["text"])}</td><td>{esc(x["measured_width"])} px</td><td>{x["available_width"]} px</td><td class="no">Требует правки</td></tr>' for x in failed)+'</tbody></table>'
     else:body+='<p>Строки помещаются при стандартном размере. Проверка узких окон дополнительно выполняется в браузере.</p>'
-    body+='</section><details class="ui-source"><summary>Оформление публичной версии</summary><p>'+STAR+' Нейтральные звёзды построены из SVG, подписи используют встроенный в Pillow шрифт Aileron. Графика и шрифты из игровых скриншотов не распространяются. Английские названия проверяются в этом оформлении; при смене шрифта нужна повторная проверка. Локализации и loc QA — out of scope.</p></details>'
+    body+='</section><details class="ui-source"><summary>Оформление публичной версии</summary><p>'+STAR+' Звёзды взяты из исходного UI-референса: сохранены форма, цвет, размер относительно карты и готовые группы, включая дугу из пяти звёзд. Подписи используют встроенный в Pillow шрифт Aileron. Шрифт из игрового скриншота не распространяется. Английские названия проверяются в этом оформлении; при смене шрифта нужна повторная проверка. Локализации и loc QA — out of scope.</p></details>'
     return body,result
 
 CSS='''
@@ -83,8 +84,8 @@ nav{display:flex;gap:10px;flex-wrap:wrap;margin:22px 0}nav a{padding:8px 14px;ba
 .card{min-width:0;position:relative;background:transparent}.card-shell{padding:6px;border-radius:22px;background:linear-gradient(145deg,#f5fcff 0%,#91bae0 25%,#e3f6ff 49%,#7c9bcf 72%,#5066aa 100%);box-shadow:0 3px 4px #15284d70,inset 0 0 0 1px #def7ff}.card.golden .card-shell{background:linear-gradient(145deg,#fff4a9,#efb925 28%,#ffe58b 48%,#d88a14 76%,#986209)}
 .card-inner{border:2px solid #e7f8f8;border-radius:17px;overflow:hidden;background:#155d3e}.golden .card-inner{border-color:#fff2ad}.art{aspect-ratio:43/48;position:relative;background:#e7ece5}.art>a{display:block;width:100%;height:100%}.art img{display:block;width:100%;height:100%;object-fit:contain}.placeholder{height:100%;display:grid;place-content:center;text-align:center;font-size:12px;color:#65786c}.placeholder b{font-size:30px;display:block}
 .nameplate{height:32px;display:flex;align-items:center;justify-content:center;padding:0 4px;background:var(--deep);border-top:1px solid #e8f9ec70}.card-name{font:900 clamp(13px,1.4vw,18px)/1 Arial,sans-serif;white-space:nowrap;text-transform:uppercase;color:white;text-shadow:1px 2px 0 #17362b,-1px -1px 0 #17362b;letter-spacing:-.35px;max-width:100%}
-.rarity-row{position:absolute;left:0;right:0;top:-17px;z-index:2;display:flex;justify-content:center;pointer-events:none}.star-group{display:inline-flex;align-items:center;gap:0;white-space:nowrap;filter:drop-shadow(0 2px 1px #91591870)}.star{width:clamp(21px,2.4vw,30px);height:clamp(21px,2.4vw,30px);flex:none;overflow:visible}.unassigned{font-size:11px;background:#fff3d6;color:#73582c;padding:3px}
-.card-body{padding:10px 2px 0;font-size:12px;color:#63756b}.status.accepted{color:#206147}.strip{position:absolute;bottom:0;width:100%;background:#fff0ce;padding:5px;text-align:center;font-size:12px}.set-footer{text-align:center;font-weight:bold;font-size:14px;color:#856045;margin-top:18px}.metadata{margin-top:12px}.metadata table{border-collapse:collapse;width:100%;font-size:13px;background:#fff}.metadata td,.metadata th{text-align:left;padding:8px;border-bottom:1px solid var(--line)}.metadata .star{width:19px;height:19px}.metadata .star-group{filter:none}
+.rarity-row{position:absolute;left:-3.846153846%;right:-3.846153846%;top:0;transform:translateY(-37.5%);z-index:2;pointer-events:none}.star-group{display:inline-block;line-height:0;white-space:nowrap}.rarity-row .star-group{display:block;width:100%}.rating-stars{display:block;width:100%;height:auto;overflow:visible}.star{width:30px;height:30px;overflow:visible}.unassigned{font-size:11px;background:#fff3d6;color:#73582c;padding:3px}
+.card-body{padding:10px 2px 0;font-size:12px;color:#63756b}.status.accepted{color:#206147}.strip{position:absolute;bottom:0;width:100%;background:#fff0ce;padding:5px;text-align:center;font-size:12px}.set-footer{text-align:center;font-weight:bold;font-size:14px;color:#856045;margin-top:18px}.metadata{margin-top:12px}.metadata table{border-collapse:collapse;width:100%;font-size:13px;background:#fff}.metadata td,.metadata th{text-align:left;padding:8px;border-bottom:1px solid var(--line)}.metadata .star-group{width:110px}
 .final-view .collection-board{min-width:860px;max-width:1060px;margin:auto;padding:0 30px 18px;border:8px solid #fae0a7;border-radius:36px;background:repeating-linear-gradient(55deg,#ffffff04 0 35px,#00000004 35px 70px),var(--tone);box-shadow:0 0 0 3px var(--deep),0 0 0 7px var(--light),0 8px 15px #0a392e30,inset 0 0 0 3px #e7b86b}
 .final-view .set-banner{margin:-5px -38px 34px;padding:18px 20px 20px;border:2px solid var(--light);border-radius:42% 42% 12% 12% / 22% 22% 22% 22%;background:linear-gradient(#ffffff15,#0000000b),var(--tone);box-shadow:0 5px 0 var(--deep)}.final-view .set-banner h2{font-weight:1000;font-size:32px;letter-spacing:.5px;color:#ffdf48;text-shadow:1px 3px 0 #68541e,-1px -1px 0 #7c6927;text-transform:uppercase}
 .final-view .card-body{display:none}.final-view .set-footer{display:table;margin:22px auto -13px;padding:4px 28px;background:#fae0a7;border-radius:20px 20px 0 0;color:#945534}
@@ -94,7 +95,6 @@ nav{display:flex;gap:10px;flex-wrap:wrap;margin:22px 0}nav a{padding:8px 14px;ba
 .card-name{font-size:18px;line-height:1;letter-spacing:0;text-transform:none;text-shadow:none;max-width:none;flex:none}.game-type{display:block;flex:none;overflow:visible}
 .set-banner h2{display:flex;justify-content:center;align-items:center;line-height:1;height:32px}.set-banner .game-type{filter:sepia(1) saturate(5)}
 .final-view .collection-board{width:1060px;min-width:1060px;max-width:1060px}
-.star-group[data-stars="5"]>.star:nth-child(1){transform:translateY(4px) rotate(-16deg)}.star-group[data-stars="5"]>.star:nth-child(2){transform:rotate(-8deg)}.star-group[data-stars="5"]>.star:nth-child(3){transform:translateY(-2px)}.star-group[data-stars="5"]>.star:nth-child(4){transform:rotate(8deg)}.star-group[data-stars="5"]>.star:nth-child(5){transform:translateY(4px) rotate(16deg)}
 .hide-names .fit-fail{outline:none!important}.label-review{margin:24px 0;padding:20px;background:#fff3d6;border:1px solid #e4c78d;border-radius:12px}.label-review h2{font-size:21px}.label-review table{width:100%;border-collapse:collapse;font-size:13px}.label-review td,.label-review th{text-align:left;padding:9px;border-bottom:1px solid #e3d9bc}.label-review .no{color:#9a3422}.ui-source{margin-top:24px;font-size:13px;color:#50655b}.ui-source .star{display:inline-block;vertical-align:middle;width:32px;height:32px}
 @media(max-width:900px){main{padding:22px 14px}body:not(.final-view) .cards{grid-template-columns:repeat(3,minmax(0,1fr))}.variant-info{align-items:flex-start}.controls{position:relative}}
 @media(max-width:540px){h1{font-size:28px}body:not(.final-view) .cards{grid-template-columns:repeat(2,minmax(0,1fr))}body:not(.final-view) .collection-board{padding:12px}.controls{gap:12px}.controls label{font-size:12px}.variant-info{display:block}.set-banner h2{font-size:24px}}

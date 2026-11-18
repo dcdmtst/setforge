@@ -2,7 +2,6 @@
 
 import csv
 import html
-import math
 from pathlib import Path
 from urllib.parse import quote
 
@@ -13,6 +12,7 @@ from .acceptance import score as art_score
 from .allocation import require_gate
 from .naming import names, display_title
 from .showcase import acceptance_text, discard_reason, qualified_entities
+from .rating_ui import rating_image
 
 
 def font(size=18):
@@ -46,11 +46,9 @@ def contact_sheets(run, state, config, production_only=False):
             else:
                 draw.rectangle((x, y, x + 204, y + 215), fill="#cccccc")
             stars = card.get('stars', 0)
-            for k in range(stars):
-                cx, cy = x + 102 + (k-(stars-1)/2)*23, y+9
-                points=[(cx+(11 if p%2==0 else 5)*math.cos(-math.pi/2+p*math.pi/5),
-                         cy+(11 if p%2==0 else 5)*math.sin(-math.pi/2+p*math.pi/5)) for p in range(10)]
-                draw.polygon(points, fill='#ffe548', outline='#db8a10')
+            if type(stars) is int and 1<=stars<=5:
+                rating,dx,dy=rating_image(stars,204)
+                sheet.paste(rating,(x+dx,y+22+dy),rating)
             label = f"{n + 1:02d} {display_title(mapping, variant, card)}"
             draw.text((x, y + 220), label, fill="#262626", font=font(15))
             if key in (state.get('discarded_cards') or {}):

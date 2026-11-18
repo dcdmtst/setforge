@@ -15,6 +15,14 @@ from .ui_skin import measure_label
 from .naming import names,display_title
 
 
+def presentation_fingerprint():
+    """Invalidate cached ZIPs when embedded UI changes, without touching art."""
+    from importlib.resources import files
+    package=files('setforge')
+    return hashlib.sha256(b''.join(package.joinpath(name).read_bytes() for name in
+        ('showcase.py','ui_skin.py','neutral_skin.py','rating_ui.py','defaults/ui/rating-stars.json'))).hexdigest()
+
+
 def result_manifest(run):
     run=Path(run).resolve();state=read(run/'state.json');brief=read(run/'inputs/brief.json')
     expected=brief.get('variants',3)*10;groups=[];valid=0;errors=[]
@@ -103,7 +111,7 @@ def export_bundle(run,out=None):
         value=result_manifest(run);public=public_manifest(value);write(run/'result-manifest.json',public)
         if not value['full_delivery_ready']:
             raise ValueError('Full delivery is not accepted. Read result-manifest.json; no accepted ZIP was produced.')
-        fingerprint=hashlib.sha256(json.dumps(public,sort_keys=True).encode()).hexdigest()
+        fingerprint=hashlib.sha256((json.dumps(public,sort_keys=True)+presentation_fingerprint()).encode()).hexdigest()
         receipt=run/'delivery-receipt.json'
         if out.exists() and receipt.exists():
             previous=read(receipt)

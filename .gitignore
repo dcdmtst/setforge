@@ -20,6 +20,7 @@ raw/
 private/
 references/
 *.png
+!src/setforge/defaults/ui/rating-stars-[1-5].png
 *.jpg
 *.jpeg
 *.webp

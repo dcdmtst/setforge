@@ -21,4 +21,4 @@ setforge = "setforge.cli:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-setforge = ["defaults/*.json", "defaults/*.md", "defaults/*.html"]
+setforge = ["defaults/*.json", "defaults/*.md", "defaults/*.html", "defaults/ui/*.json", "defaults/ui/rating-stars-[1-5].png"]

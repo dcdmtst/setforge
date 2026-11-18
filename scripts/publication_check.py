@@ -13,6 +13,7 @@ TOP_FILES={'README.md','SETUP_AGENT.md','AGENTS.md','LICENSE','NOTICE.md','PUBLI
            'BASELINE.json','pyproject.toml','Dockerfile','.gitignore','.gitattributes','.dockerignore'}
 TOP_DIRS={'src','tests','docs','scripts','examples','.agents','.github'}
 EXTENSIONS={'.py','.md','.json','.toml','.html','.yaml','.yml','.gitignore','.gitattributes','.dockerignore'}
+UI_SPRITES={f'src/setforge/defaults/ui/rating-stars-{i}.png' for i in range(1,6)}
 PATTERNS=[r'(?i)[a-z]:[/\\]Users[/\\]',r'(?i)\b[A-Z0-9._%+-]+@(?:gmail|hotmail|outlook|yahoo)\.[A-Z]{2,}\b',
           r'(?i)miro\.com/app/board/',r'\bsk-[A-Za-z0-9_-]{20,}',
           r'\b(?:ghp_|github_pat_|hf_)[A-Za-z0-9_]{20,}',r'-----BEGIN (?:RSA |OPENSSH |EC )?PRIVATE KEY-----']
@@ -30,6 +31,18 @@ def check(root=ROOT,tracked=False):
     root=Path(root);errors=[];selected=list(source_files(root));allowed={p.relative_to(root).as_posix() for p in selected}
     for path in selected:
         rel=path.relative_to(root).as_posix()
+        if rel in UI_SPRITES:
+            # Only five explicitly supplied UI sprites are distributable; real
+            # reference packs, card artwork and arbitrary binaries stay blocked.
+            from PIL import Image
+            spec=json.loads((root/'src/setforge/defaults/ui/rating-stars.json').read_text(encoding='utf8'))
+            asset=next((a for a in spec['assets'] if a['file']==path.name),None)
+            if not asset or hashlib.sha256(path.read_bytes()).hexdigest()!=asset['sha256']:
+                errors.append('Reference UI sprite hash mismatch: '+rel)
+            with Image.open(path) as image:
+                if image.format!='PNG' or image.mode!='RGBA' or image.size!=(560,192):
+                    errors.append('Unexpected reference UI sprite format: '+rel)
+            continue
         if path.name not in TOP_FILES and path.suffix not in EXTENSIONS and rel!='.github/CODEOWNERS':errors.append('Unapproved source type: '+rel)
         if any(part.lower() in {'vendor','outputs','raw','producer-runs','runs','references','work','secrets'} for part in path.relative_to(root).parts):
             errors.append('Private/runtime directory: '+rel)

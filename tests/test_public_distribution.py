@@ -111,6 +111,9 @@ class DistributionTests(unittest.TestCase):
     def test_final_zip_is_complete_portable_and_contains_no_history(self):
         run=self.completed_fixture();manifest=result_manifest(run);self.assertTrue(manifest['full_delivery_ready'])
         receipt=export_bundle(run);self.assertEqual(receipt,export_bundle(run))
+        with patch('setforge.delivery.presentation_fingerprint',return_value='changed-ui-version'):
+            updated=export_bundle(run)
+            self.assertNotEqual(receipt['fingerprint'],updated['fingerprint'])
         with zipfile.ZipFile(receipt['path']) as archive:
             names=archive.namelist();self.assertEqual(len([p for p in names if p.startswith('images/')]),30)
             self.assertEqual(len([p for p in names if p.startswith('cards/')]),30)
