@@ -36,6 +36,11 @@ explicit owner instruction. See docs/contributing.md.
 - Default image execution is the active agent's **builtin imagegen**, via files
   mode. Do not launch a nested `codex exec` and assume it has your image tools.
   Do not invent unavailable API wrappers or silently switch to paid access.
+- Use docs/image-execution.md: prepare-job selects at most5 total imagegen inputs,
+  preserving edit target/canon and recording omitted original references. Inspect
+  full inputs; send only selected paths. Wrap one tool call in image-start and
+  image-finish. The CLI writes timestamps, hashes and response JSON; do not
+  hand-transcribe metadata or silently retry an already recorded attempt.
 - Additional cash budget is0 by default. Capability checks generate nothing.
   Optional generator probes need explicit user request/approval and zero-cash
   tools. Credentials stay in environment variables and out of commands/logs.

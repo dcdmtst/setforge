@@ -147,6 +147,24 @@ def parser():
     worker.add_argument('--lease-seconds', type=positive_seconds, default=900)
     prep=sub.add_parser('prepare-job',help='Read-only execution envelope with cached-reference status and framing guidance')
     prep.add_argument('--run',type=Path,required=True);prep.add_argument('--job',required=True);prep.add_argument('--worker',required=True)
+    image_start = sub.add_parser('image-start', help='Prepare bounded tool inputs and open a machine-timed image attempt')
+    image_start.add_argument('--run', type=Path, required=True)
+    image_start.add_argument('--job', required=True)
+    image_start.add_argument('--worker', required=True)
+    image_start.add_argument('--token', required=True)
+    image_start.add_argument('--tool', default='imagegen')
+    image_start.add_argument('--model', default='unspecified')
+    image_start.add_argument('--max-images', type=positive_int)
+    image_start.add_argument('--prompt-file', type=Path, help='Exact augmented prompt, saved before the call')
+    image_finish = sub.add_parser('image-finish', help='Close timer, preserve PNG, compute hash and write response JSON')
+    image_finish.add_argument('--run', type=Path, required=True)
+    image_finish.add_argument('--job', required=True)
+    image_finish.add_argument('--worker', required=True)
+    image_finish.add_argument('--token', required=True)
+    result = image_finish.add_mutually_exclusive_group(required=True)
+    result.add_argument('--image', type=Path)
+    result.add_argument('--error')
+    image_finish.add_argument('--note', default='Generated PNG; metadata recorded by Setforge.')
     cache=sub.add_parser('reference-cache',help='List uninspected references or explicitly record a completed visual inspection')
     cache.add_argument('--run',type=Path,required=True);cache.add_argument('--job',required=True);cache.add_argument('--worker',required=True)
     cache.add_argument('--mark-path');cache.add_argument('--role');cache.add_argument('--sha256');cache.add_argument('--evidence')
@@ -415,6 +433,16 @@ def main(argv=None):
             return coordinate(args)
         if args.command in {'queue','claim','heartbeat','deliver','abandon','reconcile','worker'}:
             return queue_command(args)
+        if args.command in ('image-start', 'image-finish'):
+            from .image_execution import start as start_image, finish as finish_image
+            if args.command == 'image-start':
+                output(start_image(args.run, args.job, args.worker, args.token, tool=args.tool,
+                                   model=args.model, max_images=args.max_images, prompt_file=args.prompt_file))
+                return 0
+            result = finish_image(args.run, args.job, args.worker, args.token,
+                                  image=args.image, error=args.error, note=args.note)
+            output(result)
+            return 0 if result['status'] == 'succeeded' else 2
         if args.command in ('validate-response','prepare-job','reference-cache'):
             from .preparation import preflight_response,InspectedReferenceCache,framing_guidance
             run=args.run.resolve();request=read(inside(run,'jobs/'+args.job+'/request.json'))
@@ -429,7 +457,11 @@ def main(argv=None):
                 if image is None:raise ValueError('Reference is not in the exact job request.')
                 output(cache.mark_inspected(run,image,evidence=args.evidence,expected_sha256=args.sha256));return 0
             result={'job':args.job,'worker':args.worker,'uninspected':cache.uninspected(run,images)}
-            if args.command=='prepare-job':result.update(request=request,framing_guidance=framing_guidance())
+            if args.command=='prepare-job':
+                result.update(request=request,framing_guidance=framing_guidance())
+                if request.get('kind') == 'image':
+                    from .image_execution import image_call
+                    result['image_call'] = image_call(run, request)
             output(result);return 0
         if args.command == 'brief':
             from .schemas import BRIEF, validate

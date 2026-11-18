@@ -72,4 +72,8 @@ GitHub workflow запускает только офлайн-тесты, сбо�
 
 Полезные команды: `schema production-plan`, `schema production-card-review`,
 `schema entity-review`, `prepare-job`, `validate-response`, `allocation-check`,
-`nameplate-check`, `acceptance-policy`, `inbox --runs RUNS --wait-seconds 30`.
+`image-start`, `image-finish`, `nameplate-check`, `acceptance-policy`,
+`inbox --runs RUNS --wait-seconds 30`.
+Файловый исполнитель встроенного генератора использует image-start/image-finish
+вокруг одного вызова. Подбор референсов, UTC-метки, хеш PNG и готовый ответ
+записываются кодом: [image-execution.md](image-execution.md).

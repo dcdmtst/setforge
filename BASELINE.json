@@ -1,6 +1,6 @@
 {
   "engine_baseline": "002 /0.9.0",
-  "packaging_version": "0.9.1",
+  "packaging_version": "0.9.2",
   "unchanged_core_modules": {
     "acceptance.py": "7763c5722ce051bfa117ee276a05f29eac404ace83a66140d18e52d4ce7b5fd8",
     "allocation.py": "6900ac20663846001d5b1aa1ccbe3900baaec54fcf569664fcd60eb414917a07",
@@ -14,5 +14,5 @@
     "refine.py": "d859371675aa549be997bb54f185be6f40625f3defffc3ceb9ac1498abce9e23",
     "nameplate.py": "86f8c4d3955ca230598b8829c96994dd517d12f59cfcd4a81c45eeab55ba8b90"
   },
-  "scope": "distribution, neutral UI, generic reference import, delivery and documentation; no production-art rerun"
+  "scope": "distribution, neutral UI, generic reference import, delivery, bounded builtin image inputs, automatic image attempt receipts and documentation; 0.9.2 published without rechecks or a new art run at owner request"
 }

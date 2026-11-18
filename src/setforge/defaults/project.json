@@ -16,7 +16,7 @@
   "providers": {
     "planner": {"type": "files", "estimated_cost": 0},
     "reviewer": {"type": "files", "estimated_cost": 0},
-    "image": {"type": "files", "estimated_cost": 0}
+    "image": {"type": "files", "estimated_cost": 0, "max_images": 5}
   },
   "limits": {
     "max_calls": 160,

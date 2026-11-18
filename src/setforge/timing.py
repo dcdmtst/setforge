@@ -165,6 +165,7 @@ def collect_timing(run, state):
                                       'worker': record.get('worker'), 'seconds': seconds,
                                       'tool': record.get('tool'),
                                       'received': record.get('received'),
+                                      'timing_scope': record.get('timing_scope', 'legacy tool duration; scope unspecified'),
                                       'source': record_path.relative_to(run).as_posix(),
                                       'model_start': None, 'model_end': None})
                 explicit=_read(record_path.parent/'generation-tool-timing.json',record)
@@ -410,6 +411,9 @@ def render_timing(run, state):
     legend = ''.join(f'<span><i style="background:{COLORS[key]}"></i>{esc(label)}</span>' for key,label in STAGES.items())
     exact=sum(row['model_start'] is not None and row['model_end'] is not None for row in data['model_records'])
     timing_note=(f'Точные начало и конец сохранены для {exact} из {len(data["model_records"])} вызовов генерации; они указаны в хронологии заданий.' if exact else 'Точные начало и конец вызовов модели не записаны: известны только длительности инструментов.')
+    if any(row.get('timing_scope', '').startswith('executor call envelope') for row in data['model_records']):
+        timing_note += (' Записи image-start/image-finish измеряют интервал вызова исполнителя, включая '
+                        'отправку и возврат результата; это не чистое вычислительное время модели.')
     return f'''<section class="sf-time" id="sf-time-analysis">
 <style>
 .sf-time{{margin:40px 0 0;padding:28px;background:#101827;color:#eef2ff;border-radius:18px;font:15px/1.5 system-ui,sans-serif;overflow:hidden}}

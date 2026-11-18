@@ -11,7 +11,10 @@ credentials or the user's other projects. Do not call a model during installatio
    Do not equate an installed Codex binary or an API key with builtin tool access.
    If the tool is unavailable, say so; use only an explicitly authorised free
    alternative. Optional discovery/probe is described in docs/generators.md.
-3. Obtain a local style pack described in docs/reference-pack.md. Search the
+3. Obtain a local style pack described in docs/reference-pack.md. The repository
+   and skill do NOT include the original160 images or a trained style model.
+   To reproduce that look the user must supply the original catalogue locally;
+   otherwise use their own authorised reference pack and its style.md. Search the
    user-specified local folder first. Do not fetch proprietary references from
    another workspace or publish them. If absent, ask for the folder once. An
    empty project can still serve the setup page; it cannot produce valid art.
@@ -32,6 +35,21 @@ credentials or the user's other projects. Do not call a model during installatio
    command. Do not end the turn claiming an unattended service exists when only
    this chat has imagegen. If the user wants you to stop waiting, stop waiting;
    submitted files remain available to resume later.
+
+For production read docs/image-execution.md before dispatching the artists.
+Builtin imagegen accepts at most5 total inputs, including edit target and canon.
+Use prepare-job's image_call selection; the full original input list stays available
+for inspection/review. Never hand-trim identities to make a request fit.
+Use image-start immediately before one tool call, image-finish immediately after
+with its actual PNG path (or --error). The CLI writes correct timestamps, duration,
+SHA256 and image-response.json automatically. Do not ask the producer to repair
+metadata or hand-write generation-record.json. Record unavailable capabilities
+honestly; these helpers do not supply a missing image model or revive an idle chat.
+
+Future reference/style changes are documented in docs/reference-pack.md. Do not
+replace references, recalibrate scores or run a style experiment during installation
+unless the user requests it. For a different style, prefer a separate project so
+the old collection canon does not leak into it.
 
 The server is local-only (`127.0.0.1`). Closing the browser does not stop its
 background process. `.setforge/server.json` records its PID and command; stop

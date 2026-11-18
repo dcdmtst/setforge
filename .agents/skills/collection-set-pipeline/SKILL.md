@@ -73,8 +73,23 @@ One lease = one tool attempt. Inspect all exact inputs with their roles and hash
 original style, accepted canon, edit target, candidate, thumbnail. Do not treat a
 revision as a new original style reference. `reference-cache` records only actual
 visual inspections by this worker; hash presence alone is not an inspection.
-Record exact prompt, true output PNG, actual tool/model and UTC call start/end.
-Use real saved output, not a reconstruction. No game UI, labels or stars in the art.
+For builtin imagegen follow docs/image-execution.md. `prepare-job.image_call`
+selects at most FIVE total tool images: edit target and mandatory canon first,
+then card-specific original style references, then global originals. Byte-identical
+inputs share a slot with recorded role aliases. Inspect the full immutable inputs;
+send only the prepared selected paths. The CLI records omissions, never silently
+drops identity. Review jobs retain their full inputs and are not capped to five.
+
+Finish input inspection/prompt work BEFORE `image-start --run RUN --job JOB
+--worker WORKER --token TOKEN`. Pass its exact prompt/paths to ONE imagegen call,
+then immediately `image-finish ... --image ABSOLUTE_TOOL_PNG`. The CLI writes
+UTC boundaries, seconds, hashes, tool/worker/model and image-response.json; do not
+hand-transcribe those fields. Deliver that response via the existing lease.
+On a tool failure use `image-finish ... --error REASON`, then abandon that attempt.
+Do not retry a started or closed attempt silently. Use --prompt-file before start
+for an augmented exact prompt; --model only for an actually disclosed model.
+Timing is a dispatch/return envelope, not pure model compute. Use real saved
+output, not a reconstruction. No game UI, labels or stars in the art.
 Preserve complete major silhouettes, visual interest and varied backgrounds.
 
 New recurring entities need explicit source_card_id and scope(set/collection).
