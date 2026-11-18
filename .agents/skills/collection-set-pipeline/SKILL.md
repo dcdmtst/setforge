@@ -100,6 +100,16 @@ entity does. An approved entity NEVER accepts its defective source card.
 
 ## Review and feedback
 
+Before scoring, physically trace whole objects, their parts, joints/support and
+actor contact. For a lid/door/drawer check its matching opening, axis/travel and
+plausible closed position; counting hinges is not proof of a coherent assembly.
+New card jobs require exact-pixel construction_review. Inspect risky joints
+close up in the native and name that region. If essential construction is
+unconvincing, fail geometry with a blocking finding and revise even when Q95
+passes. Do not invent hidden supports; allow natural occlusion, stylization and
+explicit fantasy. Whole-set jobs independently recheck construction_targets.
+See docs/art-acceptance.md; structural JSON validation cannot verify the pixels.
+
 Inspect actual native and thumbnail images against ORIGINAL references and brief.
 Use exact schema: nine scores0–100 in steps of5 with visible evidence; class,
 canon, observed category and all criteria. Weights: technical20, palette10,
@@ -135,3 +145,11 @@ not an accepted ZIP. Show actual paths/links and unresolved failures.
 `canon-publish` is explicit cross-run promotion of accepted scoped identity. Old
 runs stay unchanged. Never publish references, outputs, local config or history
 unless separately requested. Source-only publication uses scripts/publication_check.py.
+
+For an explicit producer rejection after completion, `revise-card --run RUN
+--card VARIANT/CARD --note PRODUCER_CORRECTION` preserves prior PNGs, responses,
+attempt counts and a pre-change delivery archive. It reopens only that card and
+enables its construction gate. Coordinate, generate/review that correction and
+repeat final-set review/export; do not hand-edit accepted state or regenerate
+the other cards. The prior accepted judgement is historical evidence, not a
+valid fallback after the producer invalidated it.

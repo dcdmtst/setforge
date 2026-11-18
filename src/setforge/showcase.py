@@ -192,6 +192,30 @@ def render(run,state,brief,*,audit_path='audit.html',notice=''):
     if (run/'naming-review.json').exists():page.append('<a href="naming-review.json">Проверка названий</a>')
     if not discarded_sets and not discarded_cards and (run/'exports/manifest.json').exists():page.append('<a href="exports/manifest.json">Все отдельные PNG</a>')
     page.append('</div>')
+    revisions = list(state.get('producer_revision_summaries', []))
+    if not revisions:
+        for amendment in state.get('producer_revisions', []):
+            path = inside(run, amendment['path'])
+            if path.is_file():
+                entry = read(path)
+                revisions.append({'card': entry['card'], 'note': entry['note'],
+                                  'previous_quality': entry['previous_artifact'].get('quality')})
+    if revisions:
+        page.append('<section class="brief"><h2>Исправления после приёмки</h2><p>Предыдущие PNG и решения сохранены в приватной истории. Здесь показана текущая версия.</p>')
+        for entry in revisions:
+            current = accepted.get(entry['card'], {})
+            previous = entry.get('previous_quality')
+            before = f'{previous:.2f}' if isinstance(previous,(int,float)) else '—'
+            quality = current.get('quality')
+            after = f'{quality:.2f}' if isinstance(quality,(int,float)) else 'ожидает приёмки'
+            page.append(f'<h3>{esc(entry["card"])}</h3><p>Прежняя оценка: {before}; прежняя приёмка отозвана. Текущая: {after}.</p><p>{esc(entry["note"])}</p>')
+            audit = next((r.get('construction_review') for r in reversed(state.get('art_history',{}).get(entry['card'],[]))
+                          if r['artifact']['job_id']==current.get('job_id')), None) or entry.get('construction_review')
+            if audit:
+                page.append(f'<p><b>Гейт конструкции: {esc(audit["verdict"])}</b>. Проверены части, сопряжения, механизм, опоры, перспектива и контакт персонажа.</p>')
+                for assembly in audit['assemblies']:
+                    page.append(f'<p>{esc(assembly["object"])}: {esc(assembly["mechanism"]["closed_position_or_travel"])}</p>')
+        page.append('</section>')
     write(run/'timing-data.json',collect_timing(run,state))
     page.append(render_timing(run,state))
     page.append('</main>'+JS+'</body></html>')

@@ -50,14 +50,27 @@ def result_manifest(run):
                         raise ValueError('Export does not bind the accepted native.')
                     if artifact.get('observed_category')!=card['background']:
                         raise ValueError('Observed category differs from allocation.')
+                    from .construction import applies, validate_card
+                    if applies(state,key):
+                        history=next(r for r in reversed(state['art_history'][key]) if r['artifact']['job_id']==artifact['job_id'])
+                        visual_review=read(inside(run,'jobs/'+history['review_job']+'/response.json'))
+                        if not validate_card(run,visual_review,artifact,key):
+                            raise ValueError('Construction is not accepted; score cannot override it.')
                     entry.update(accepted=True,native_path=f"images/{variant['id']}/{index:02d}-{card['id']}.png",
                                  path=f"cards/{variant['id']}/{index:02d}-{card['id']}.png",
                                  source_sha256=artifact['sha256'],sha256=export['sha256'],
                                  _native_source=artifact['path'],_export_source=export['path'])
                     valid+=1
-                except (OSError,ValueError,KeyError) as exc:errors.append({'card':key,'error':str(exc)})
+                except (OSError,ValueError,KeyError,StopIteration) as exc:errors.append({'card':key,'error':str(exc)})
             cards.append(entry)
         groups.append({'id':variant['id'],'title':display_title(mapping,variant),'cards':cards})
+    if state['status']=='complete' and state.get('construction_policy'):
+        try:
+            from .construction import targets,validate_set
+            final=next(j for j in reversed(state['jobs']) if j['kind']=='set_review' and j.get('status')=='received')
+            validate_set(run,read(inside(run,'jobs/'+final['id']+'/response.json')),targets(state))
+        except (OSError,ValueError,KeyError,StopIteration) as exc:
+            errors.append({'gate':'final_construction','error':str(exc)})
     ready=(state['status']=='complete' and len(groups)==brief.get('variants',3)
            and all(len(g['cards'])==10 for g in groups) and valid==expected and not errors)
     return {'schema_version':1,'run_id':run.name,'status':state['status'],
@@ -114,6 +127,15 @@ def export_bundle(run,out=None):
                     artifact['path']=card['native_path'];display['accepted'][key]=artifact
                     export_rows.append({'key':key,'path':card['path'],'sha256':card['sha256']})
             write(stage/'result-manifest.json',public);write(stage/'exports/manifest.json',export_rows)
+            display['producer_revision_summaries'] = []
+            for amendment in state.get('producer_revisions', []):
+                entry = read(inside(run,amendment['path']))
+                display['producer_revision_summaries'].append({'card':entry['card'], 'note':entry['note'],
+                    'previous_quality':entry['previous_artifact'].get('quality')})
+                current=state['accepted'].get(entry['card'],{})
+                audit=next((r.get('construction_review') for r in reversed(state.get('art_history',{}).get(entry['card'],[]))
+                            if r['artifact']['job_id']==current.get('job_id')),None)
+                if audit:display['producer_revision_summaries'][-1]['construction_review']=audit
             from .showcase import render
             from .timing import collect_timing,render_timing
             render(stage,display,brief,audit_path=None)

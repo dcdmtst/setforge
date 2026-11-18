@@ -175,6 +175,13 @@ def preflight_response(run, job_id, response):
     kind, context = request['kind'], request.get('context', {})
     if kind.endswith('_review'):
         check('review_semantics', lambda: _review(request, response))
+        if kind == 'card_review' and context.get('construction_policy'):
+            from .construction import validate_card
+            key = context['variant']['id'] + '/' + context['card']['id']
+            check('construction', lambda: validate_card(run, response, context['construction_artifact'], key))
+        if kind == 'set_review' and 'construction_targets' in context:
+            from .construction import validate_set
+            check('construction', lambda: validate_set(run, response, context['construction_targets']))
         if kind == 'entity_review':
             check('source_hash', lambda: _image_record(run, context['source_artifact']))
     if kind == 'plan':

@@ -81,6 +81,14 @@ class Pipeline:
                      "jobs": [], "reason": "", "input_manifest_sha256": sha(run / "inputs/manifest.json")}
             state.update(art_acceptance=art_policy(), art_history={}, art_stops={}, art_invalidated=[])
             state.update(allocation_policy=allocation, allocation_gate=None)
+            if config.get('schema_version',1) == 2:
+                from .construction import policy as construction_policy
+                state['construction_policy'] = construction_policy()
+                write(run/'inputs/construction-policy.json', state['construction_policy'])
+                manifest = read(run/'inputs/manifest.json')
+                manifest.append({'path': 'inputs/construction-policy.json', 'sha256': sha(run/'inputs/construction-policy.json')})
+                write(run/'inputs/manifest.json', manifest)
+                state['input_manifest_sha256'] = sha(run/'inputs/manifest.json')
             state['production_contract'] = {'mode': brief.get('production_mode', 'full'),
                                             'requested_variants': brief['variants'], 'cards_per_variant': 10}
             if config['rules'].get('title_preflight',True):
@@ -118,6 +126,14 @@ class Pipeline:
         raise NeedsInput(reason)
 
     def check_snapshot(self):
+        construction = (read(self.run/'inputs/construction-policy.json')
+                        if (self.run/'inputs/construction-policy.json').exists() else None)
+        for amendment in self.state.get('producer_revisions', []):
+            path = inside(self.run, amendment['path'])
+            if sha(path) != amendment['sha256']:raise ValueError('Producer revision amendment changed.')
+            construction = read(path)['construction_policy']
+        if self.state.get('construction_policy') != construction:
+            raise ValueError('Construction policy differs from snapshot/explicit producer revision.')
         if 'nameplate_policy' in self.state and self.state['nameplate_policy']!=read(self.run/'inputs/nameplate-policy.json'):
             raise ValueError('Nameplate policy differs from its immutable snapshot.')
         if self.allocated and self.state['allocation_policy'] != read(self.run / 'inputs/allocation-policy.json'):
@@ -306,6 +322,8 @@ class Pipeline:
             names += ['rarity_assignment', 'category_assignment', 'cast_policy']
         if 'production_contract' in self.state and phase in ('plan_review','card_review','set_review'):
             names += ['producer_wishes']
+        if self.state.get('construction_policy') and phase == 'set_review':
+            names += ['construction']
         return names
 
     def art_history(self, key):
@@ -617,6 +635,20 @@ class Pipeline:
             request["prompt"] = (render_instruction + "\n\nSTYLE\n" + self.style + "\n\nBRIEF\n"
                                  + json.dumps(context, ensure_ascii=False) + "\n\nINPUT IMAGES IN ORDER\n"
                                  + json.dumps(images, ensure_ascii=False) + "\n\nTARGETED FEEDBACK\n" + str(feedback))
+        from .construction import applies, extend_schema, GUIDANCE, targets
+        if phase == 'image' and applies(self.state, key):
+            request['prompt'] += '\n\nPHYSICAL CONSTRUCTION\n' + GUIDANCE
+        if phase == 'card_review' and applies(self.state, key):
+            request['context']['construction_policy'] = self.state['construction_policy']
+            request['context']['construction_artifact'] = self.state['latest'][key]
+            request['instruction'] += '\nCONSTRUCTION HARD GATE: ' + GUIDANCE
+            request['output_schema'] = extend_schema(request['output_schema'], phase)
+        if phase == 'set_review' and self.state.get('construction_policy'):
+            request['context']['construction_targets'] = targets(self.state)
+            request['instruction'] += ('\nIndependently recheck every construction_targets native, especially its '
+                                       'junctions and moving parts. Do not infer correctness from accepted=true. '
+                                       'Return exact-pixel construction_rechecks. ' + GUIDANCE)
+            request['output_schema'] = extend_schema(request['output_schema'], phase)
         return request, role
 
     def canon_images(self):
@@ -745,6 +777,11 @@ class Pipeline:
                 raise ValueError("Set revision must name existing variant/card keys.")
         if self.quality_v2:
             check_findings(response, phase, {k for _, _, k in self.cards()})
+        from .construction import applies, validate_card, validate_set, targets
+        if phase == 'card_review' and applies(self.state, self.state['current']):
+            validate_card(self.run, response, self.state['latest'][self.state['current']], self.state['current'])
+        if phase == 'set_review' and self.state.get('construction_policy'):
+            validate_set(self.run, response, targets(self.state))
         if phase == 'card_review' and self.scored_art:
             art = response['art_review']
             q = art_score(art['scores'])
@@ -862,6 +899,10 @@ class Pipeline:
         entry = {'iteration': len(history), 'quality': art_score(art['scores']),
                  'eligible': eligible, 'artifact': copy.deepcopy(self.state['latest'][key]),
                  'review_job': getattr(self, '_active_job_id', self.state['jobs'][-1]['id']), **copy.deepcopy(art)}
+        if 'construction_review' in review:
+            entry['construction_review'] = copy.deepcopy(review['construction_review'])
+            eligible = eligible and review['construction_review']['verdict'] == 'pass'
+            entry['eligible'] = eligible
         history.append(entry)
         decision = art_decide(self.art_history(key), acceptance_policy=self.state['art_acceptance'])
         signal=plateau_signal(self.art_history(key),acceptance_policy=self.state['art_acceptance'])

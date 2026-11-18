@@ -46,6 +46,9 @@ def positive_seconds(value):
 
 
 def parser():
+    from .construction import schema as construction_schema, extend_schema
+    SCHEMAS['construction-review'] = construction_schema()
+    SCHEMAS['construction-card-review'] = extend_schema(scored_card_review(2, allocated=True), 'card_review')
     p = argparse.ArgumentParser(prog="setforge", description="Collection-card production pipeline")
     p.add_argument("--version", action="version", version=f"setforge {__version__}")
     sub = p.add_subparsers(dest="command", required=True)
@@ -188,6 +191,10 @@ def parser():
     amendment=sub.add_parser('amend-policy',help='Explicitly adopt the current art policy without resetting history or attempts')
     amendment.add_argument('--run',type=Path,required=True)
     amendment.add_argument('--note',required=True)
+    revision=sub.add_parser('revise-card',help='Reopen only an explicitly producer-rejected card, preserving completed history')
+    revision.add_argument('--run',type=Path,required=True)
+    revision.add_argument('--card',required=True)
+    revision.add_argument('--note',required=True)
     titles=sub.add_parser('nameplate-check',help='Check fixed-size English titles before art without renaming them')
     title_source=titles.add_mutually_exclusive_group(required=True)
     title_source.add_argument('--run',type=Path)
@@ -431,6 +438,12 @@ def main(argv=None):
             return 0
         if args.command == 'coordinate':
             return coordinate(args)
+        if args.command == 'revise-card':
+            from .parallel import load
+            from .revision import revise_card
+            with lock_run(args.run):
+                output(revise_card(load(args.run),args.card,args.note))
+            return 0
         if args.command in {'queue','claim','heartbeat','deliver','abandon','reconcile','worker'}:
             return queue_command(args)
         if args.command in ('image-start', 'image-finish'):

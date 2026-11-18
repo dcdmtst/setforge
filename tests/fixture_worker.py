@@ -69,6 +69,22 @@ def review(request, verdict="pass", action="none", affected=None):
         if 'observed_category' in request['output_schema']['properties']['art_review']['properties']:
             result['art_review'].update(observed_category=request['context']['card']['background'],
                                        category_evidence='TEST FIXTURE category only')
+    if 'construction_review' in request['output_schema']['properties']:
+        artifact = request['context']['construction_artifact']
+        check = lambda: {'verdict': 'pass', 'evidence': 'TEST FIXTURE structure only; no visual judgement'}
+        result['construction_review'] = {
+            'artifact_path': artifact['path'], 'artifact_sha256': artifact['sha256'],
+            'risk': 'single_piece', 'verdict': 'pass',
+            'assemblies': [{'object': 'TEST FIXTURE', 'parts': ['TEST FIXTURE'],
+                'part_whole': check(), 'joints': check(), 'support_and_contact': check(),
+                'perspective': check(), 'hand_or_actor_interaction': check(),
+                'mechanism': {**check(), 'applicability': 'not_applicable',
+                              'closed_position_or_travel': 'TEST FIXTURE has no moving parts'},
+                'native_detail_region': 'TEST FIXTURE entire canvas', 'native_detail_inspected': True}]}
+    if 'construction_rechecks' in request['output_schema']['properties']:
+        result['construction_rechecks'] = [{'card': key, 'artifact_path': a['path'],
+            'artifact_sha256': a['sha256'], 'verdict': 'pass', 'evidence': 'TEST FIXTURE only'}
+            for key, a in request['context']['construction_targets'].items()]
     return result
 
 

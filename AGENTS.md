@@ -33,6 +33,12 @@ explicit owner instruction. See docs/contributing.md.
   nine dimensions and all hard gates. Up to3 edits after iteration0. Plateau
   changes correction strategy. At the cap discard a failing card; the incomplete
   set fails. Continue unrelated jobs; stop below threshold is never a pass.
+- Before scores, audit physical construction: whole/parts, joints, lid or drawer
+  travel/closed fit, support and actor contact. New jobs require exact-pixel
+  construction_review; unconvincing essential assembly blocks acceptance regardless
+  of Q95. Final-set review rechecks risky constructions. See docs/art-acceptance.md.
+- Explicit post-delivery corrections use revise-card, never manual state edits.
+  Preserve original judgements/PNGs and spent attempts; reopen only the target.
 - Default image execution is the active agent's **builtin imagegen**, via files
   mode. Do not launch a nested `codex exec` and assume it has your image tools.
   Do not invent unavailable API wrappers or silently switch to paid access.
