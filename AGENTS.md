@@ -4,6 +4,15 @@ For installation use SETUP_AGENT.md. For production read the project-scoped
 `.agents/skills/collection-set-pipeline/SKILL.md` and docs/parallel-workers.md.
 This contract also works for agents without Codex skill support.
 
+Repository changes go through a topic branch and pull request into `main`.
+The repository owner `@dcdmtst` must approve the final diff. Never push directly
+to `main`, bypass its rules, approve your own work, or approve/merge on the owner's
+behalf without an explicit instruction for that pull request. New commits dismiss
+old approvals. GitHub does not allow a PR author to approve their own PR, so a PR
+authored by `dcdmtst` cannot satisfy the sole-owner approval requirement. Use a
+separate authorised contributor/bot account for PR authorship; do not invent an
+identity or weaken protection. See docs/contributing.md.
+
 - Inputs: theme (required), free-form wishes (optional, preserve verbatim),
   variants (3–5, default3). Output **all requested variants**, ten accepted cards
   per set; do not silently choose one variant or return only a pilot.
