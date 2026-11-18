@@ -30,7 +30,7 @@ def check(root=ROOT,tracked=False):
     root=Path(root);errors=[];selected=list(source_files(root));allowed={p.relative_to(root).as_posix() for p in selected}
     for path in selected:
         rel=path.relative_to(root).as_posix()
-        if path.name not in TOP_FILES and path.suffix not in EXTENSIONS:errors.append('Unapproved source type: '+rel)
+        if path.name not in TOP_FILES and path.suffix not in EXTENSIONS and rel!='.github/CODEOWNERS':errors.append('Unapproved source type: '+rel)
         if any(part.lower() in {'vendor','outputs','raw','producer-runs','runs','references','work','secrets'} for part in path.relative_to(root).parts):
             errors.append('Private/runtime directory: '+rel)
         try:content=path.read_text(encoding='utf-8')
