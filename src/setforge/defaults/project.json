@@ -1,0 +1,28 @@
+{
+  "schema_version": 2,
+  "collection_id": "collection",
+  "rules": {
+    "cards_per_variant": 10,
+    "background_categories": [1, 2, 3, 4],
+    "exclude_main_cast_scenes": false,
+    "exclude_golden_cards": false,
+    "characters": "optional",
+    "title_preflight": true,
+    "output_size": [430, 480],
+    "resize_policy": "contain",
+    "aspect_tolerance": 0.03
+  },
+  "global_reference_ids": [],
+  "providers": {
+    "planner": {"type": "files", "estimated_cost": 0},
+    "reviewer": {"type": "files", "estimated_cost": 0},
+    "image": {"type": "files", "estimated_cost": 0}
+  },
+  "limits": {
+    "max_calls": 160,
+    "max_estimated_cost": 0,
+    "max_attempts_per_task": 3,
+    "max_set_revisions": 2,
+    "timeout_seconds": 240
+  }
+}

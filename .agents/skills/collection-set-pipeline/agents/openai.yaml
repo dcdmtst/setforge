@@ -1,0 +1,4 @@
+interface:
+  display_name: "Setforge Collections"
+  short_description: "Create and independently review collection-card sets"
+  default_prompt: "Use $collection-set-pipeline to produce all requested Setforge variants, with local references and independent Q95 acceptance."
