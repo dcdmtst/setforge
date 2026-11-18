@@ -11,7 +11,7 @@ Do not grant collaborators, invitees or deploy keys write access without an
 explicit owner instruction. See docs/contributing.md.
 
 - Inputs: theme (required), free-form wishes (optional, preserve verbatim),
-  variants (3–5, default3). Output **all requested variants**, ten accepted cards
+  variants (3–5, default 3). Output **all requested variants**, ten accepted cards
   per set; do not silently choose one variant or return only a pilot.
 - Use the original user-supplied reference pack; inspect it visually. Never use
   generated revisions as substitutes for original style evidence. Do not reuse
@@ -29,8 +29,8 @@ explicit owner instruction. See docs/contributing.md.
   invent separate identities for the same worker. No author may review any
   version of their card, entity source, or containing set. Without independent
   reviewers, obtain another executor or human review; do not claim acceptance.
-- Review actual images at native and thumbnail size. Q95 ≥93.5 **unrounded**,
-  nine dimensions and all hard gates. Up to3 edits after iteration0. Plateau
+- Review actual images at native and thumbnail size. Q95 ≥ 93.5 **unrounded**,
+  nine dimensions and all hard gates. Up to 3 edits after iteration 0. Plateau
   changes correction strategy. At the cap discard a failing card; the incomplete
   set fails. Continue unrelated jobs; stop below threshold is never a pass.
 - Before scores, audit physical construction: whole/parts, joints, lid or drawer
@@ -42,12 +42,12 @@ explicit owner instruction. See docs/contributing.md.
 - Default image execution is the active agent's **builtin imagegen**, via files
   mode. Do not launch a nested `codex exec` and assume it has your image tools.
   Do not invent unavailable API wrappers or silently switch to paid access.
-- Use docs/image-execution.md: prepare-job selects at most5 total imagegen inputs,
+- Use docs/image-execution.md: prepare-job selects at most 5 total imagegen inputs,
   preserving edit target/canon and recording omitted original references. Inspect
   full inputs; send only selected paths. Wrap one tool call in image-start and
   image-finish. The CLI writes timestamps, hashes and response JSON; do not
   hand-transcribe metadata or silently retry an already recorded attempt.
-- Additional cash budget is0 by default. Capability checks generate nothing.
+- Additional cash budget is 0 by default. Capability checks generate nothing.
   Optional generator probes need explicit user request/approval and zero-cash
   tools. Credentials stay in environment variables and out of commands/logs.
 - Finish with `coordinate`, `result-manifest`, `export`. A complete producer ZIP

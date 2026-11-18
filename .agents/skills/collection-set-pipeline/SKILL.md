@@ -1,6 +1,6 @@
 ---
 name: collection-set-pipeline
-description: Produce and independently review 3–5 collectible-card sets of ten illustrations from a theme and producer wishes, using the Setforge CLI, local style references, scoped canon, and Q95 acceptance. Use for new or continuing Setforge orders.
+description: Set up Setforge, connect reference images, start a project with a new style, and produce or independently review 3–5 collectible-card sets of ten illustrations from a theme and producer wishes. Use for Setforge setup, style projects and new or continuing orders.
 ---
 
 # Collection set pipeline
@@ -10,10 +10,30 @@ page read SETUP_AGENT.md. For agents without skills these files are ordinary
 instructions. Use `.venv` Python and `python -m setforge` if setforge is not on PATH.
 Do not inherit a different brief's character/gold constraints.
 
+## Human commands for setup and style
+
+Treat these phrases as requests to do the work, not instructions the human must
+translate into CLI commands. Follow SETUP_AGENT.md and docs/reference-pack.md.
+
+- **«Установи и запусти Setforge»**: ask where to install, obtain
+  https://github.com/dcdmtst/setforge (Git or main.zip), then execute SETUP_AGENT.md.
+  Connect references, start the local page and return its URL. The human need not
+  download, unzip or prepare configuration files.
+- **«Подключи мои эталоны»**: ask for the images/source and optional style wishes,
+  prepare the pack/catalogue/style.md yourself, then connect them for future
+  orders. Resolve the installed project path if unknown. Keep existing orders.
+- **«Создай новый проект с новым стилем»**: ask where to create the separate
+  project, which images to use and any style wishes. Prepare a new pack and guide,
+  create a fresh project and runs folder, start its local page and return the URL.
+  Keep old references, canon, orders and servers intact; use another free port.
+  If Setforge is absent, complete installation first. Do not generate art or run
+  a style benchmark just to create the project. See the named section in
+  docs/reference-pack.md for the executable steps.
+
 ## Start and coordinate
 
 `run --project PROJECT --brief BRIEF --run NEW_RUN` creates all requested variants
-(default3, allowed3–5), ten cards each. Free-form wishes are preserved verbatim.
+(default 3, allowed 3–5), ten cards each. Free-form wishes are preserved verbatim.
 Use `inbox --runs RUNS --wait-seconds 30` for orders created in the local page.
 The files adapter requires an active agent; a completed chat will not wake itself.
 
@@ -50,21 +70,21 @@ art; distinct interpretations, semantic roles and interesting details, not palet
 variants. Check the exact wishes at plan, card and set gates. A narrative sequence
 is optional; coherent situation/activity/place is enough.
 
-Assign stars1–5, gold, category, cast and reasons BEFORE images. Default stars are
+Assign stars 1–5, gold, category, cast and reasons BEFORE images. Default stars are
 two of each rank (a project choice, not a claimed reference law). Every set has all
-categories1–4 independent of stars. Category5 is an additional golden scene with
-one/two key characters, not a substitute for1–4. Ordinary characters can appear
+categories 1–4 independent of stars. Category 5 is an additional golden scene with
+one/two key characters, not a substitute for 1–4. Ordinary characters can appear
 without gold. Character and no-gold policies are independent. Read docs/allocation.md.
 
 English set/card titles only. Measure using the actual renderer at fixed size:
-card18px/160px, set31px/850px. Never shrink, crop, ellipsize or widen to make a
+card 18 px/160 px, set 31 px/850 px. Never shrink, crop, ellipsize or widen to make a
 particular title pass. Rewrite naturally; if impossible replace the concept before
 art. Localization and loc QA are out of scope. Read docs/naming-guide.md.
 
 ## Image execution
 
 Default is builtin imagegen available to the ACTIVE agent, not nested codex exec
-or an assumed API model. Confirm real generate/edit/reference capability. Budget0
+or an assumed API model. Confirm real generate/edit/reference capability. Budget 0
 means no extra cash; no silent paid fallback. Read docs/generators.md for optional
 capability discovery and a user-requested fair probe. Probe-plan creation makes
 no model calls; do not report it as a successful benchmark.
@@ -111,19 +131,19 @@ explicit fantasy. Whole-set jobs independently recheck construction_targets.
 See docs/art-acceptance.md; structural JSON validation cannot verify the pixels.
 
 Inspect actual native and thumbnail images against ORIGINAL references and brief.
-Use exact schema: nine scores0–100 in steps of5 with visible evidence; class,
-canon, observed category and all criteria. Weights: technical20, palette10,
-narrative10, style15, background8, materials12, composition10, lighting5, interest5.
-Q95 = weighted sum /95. The CLI computes it; do not invent the final score.
+Use exact schema: nine scores 0–100 in steps of 5 with visible evidence; class,
+canon, observed category and all criteria. Weights: technical 20, palette 10,
+narrative 10, style 15, background 8, materials 12, composition 10, lighting 5, interest 5.
+Q95 = weighted sum / 95. The CLI computes it; do not invent the final score.
 
-Accept only **unrounded Q95 >=93.5 AND all hard gates**. Glossy fat-looking cloth,
+Accept only **unrounded Q95 >= 93.5 AND all hard gates**. Glossy fat-looking cloth,
 wood, fur or other inappropriate materials are defects even if attractive. Rarity
 is not a lower quality bar. Give concrete, localized feedback and preserve already
 successful aspects. Recheck regressions. Read docs/art-acceptance.md.
 
-Initial iteration0, at most THREE edits. Two consecutive edits gaining<0.5 over
+Initial iteration 0, at most THREE edits. Two consecutive edits gaining < 0.5 over
 best eligible score signal plateau: change correction strategy, not early pass/stop.
-If still failing after edit3, discard unaccepted; a set missing ten accepted cards
+If still failing after edit 3, discard unaccepted; a set missing ten accepted cards
 fails. Continue independent jobs. Do not reset counters, silently replan indefinitely,
 raise scores or manufacture reviewer identities to finish. Existing snapshots retain
 their policy; amendments require explicit producer instruction.

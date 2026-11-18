@@ -20,7 +20,7 @@ def configure(project,folder):
 def import_pack(folder,project):
     folder=Path(folder).resolve();project=Path(project).resolve();spec=read(folder/'style-pack.json')
     if spec.get('version')!=1 or not isinstance(spec.get('references'),list) or not spec['references']:
-        raise ValueError('Style pack version1 needs a nonempty references list.')
+        raise ValueError('Style pack version 1 needs a nonempty references list.')
     collection_id=spec.get('id','collection')
     if not re.fullmatch('[a-z][a-z0-9_-]{0,47}',collection_id):raise ValueError('Invalid style pack id.')
     style=inside(folder,spec.get('style','style.md')).read_text(encoding='utf8')

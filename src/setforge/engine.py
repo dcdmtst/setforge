@@ -550,8 +550,8 @@ class Pipeline:
                                     "when unspecified mark class_pass=true and explain not applicable in class_evidence. "
                                     "Below threshold or on a failed gate, give actionable feedback and next_strategy. "
                                     "After a stagnant edit (<0.5 gain against best eligible), change correction strategy. "
-                                    "Use the supplied effective art_acceptance policy. Under version2, plateau changes strategy, "
-                                    "not an early stop; after three failed edits discard the card unaccepted. Legacy version1 retains its snapshot. "
+                                    "Use the supplied effective art_acceptance policy. Under version 2, plateau changes strategy, "
+                                    "not an early stop; after three failed edits discard the card unaccepted. Legacy version 1 retains its snapshot. "
                                     "Never boost scores to force a pass.")
                 if self.allocated:
                     instruction += (" Return observed_category and category_evidence from the actual image. "

@@ -83,8 +83,8 @@ measure the false-acceptance rate of an independent judge.
 
 ## Bounded correction and independent identity
 
-Current default: unrounded Q95 >=93.5 plus all card gates, initial image plus
-at most three edits. A plateau (two gains below0.5 against the eligible best)
+Current default: unrounded Q95 >= 93.5 plus all card gates, initial image plus
+at most three edits. A plateau (two gains below 0.5 against the eligible best)
 signals a strategy change, not early termination. Exhaust the remaining edits
 unless accepted or a real budget/technical blocker intervenes. Discard a failed
 card after the limit; a set missing one of ten accepted cards is rejected, not

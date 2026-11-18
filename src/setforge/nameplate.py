@@ -65,8 +65,8 @@ def preflight(plan, policy=None, measurefn=None):
     callback is also supported, but must already use the fixed target height.
     Without a callback, policy['metrics'] supplies explicit advances.
 
-    Card defaults: ink height18, available width160. Set headings default to
-    ink height31 and width850; callers may explicitly set set_target_height
+    Card defaults: ink height 18, available width 160. Set headings default to
+    ink height 31 and width 850; callers may explicitly set set_target_height
     and set_available_width for their distinct, fixed heading lane. No dimensions
     are changed in response to a particular title. producer_flagged_labels
     holds explicit label keys requiring review even if the width passes.

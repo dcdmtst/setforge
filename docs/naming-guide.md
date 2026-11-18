@@ -10,8 +10,8 @@
 
 | Подпись | Высота видимых букв | Доступная ширина |
 |---|---:|---:|
-| Карточка |18px|160px|
-| Название сета |31px|850px|
+| Карточка |18 px|160 px|
+| Название сета |31 px|850 px|
 
 Размеры задаются политикой проекта до проверки. Они не увеличиваются и не
 уменьшаются в зависимости от конкретного слова. Масштабирование всего превью
@@ -53,8 +53,8 @@ result = preflight(plan, DEFAULT_POLICY,
                    lambda text, height: measure_label(text, height))
 ```
 
-Политика: version1, target_height18, available_width160,
-set_target_height31, set_available_width850. Дополнительный список
+Политика: `version: 1`, `target_height: 18`, `available_width: 160`,
+`set_target_height: 31`, `set_available_width: 850`. Дополнительный список
 producer_flagged_labels содержит ключи вида variant/card или set:variant:
 они остаются fail/pending даже если ширина проходит, пока замечание не решено.
 
@@ -63,7 +63,7 @@ producer_flagged_labels содержит ключи вида variant/card или
 measurement_complete, unsupported_characters, reasons, verdict и next_action.
 Происхождение измерения сохраняется в measurement_source; также сохраняются
 font_file_recovered и case_rescaled, если их вернул растровый рендерер.
-Граница проверяется без округления: ширина160 проходит,160.0001 уже нет.
+Граница проверяется без округления: ширина 160 проходит, 160.0001 уже нет.
 Пустые/многострочные тексты и неанглийское письмо блокируются; естественность
 английского и соответствие предмету остаются редакторской проверкой.
 

@@ -43,7 +43,7 @@ def revise_card(pipeline, key, note):
     state.setdefault('art_invalidated', []).append(previous['job_id'])
     state['accepted'].pop(key);state['art_stops'].pop(key, None)
     state['feedback']['image:'+key] = {'summary': note, 'source': 'explicit producer correction',
-                                      'preserve': 'Other29 cards and the independently approved entity identity.'}
+                                      'preserve': 'Other 29 cards and the independently approved entity identity.'}
     state['orchestration'].get('card_blockers', {}).pop(key, None)
     state.update(status='running', phase='parallel_art', pending=None, current=None, reason='')
     event(run, 'producer_revision', card=key, note=note, previous_job=previous['job_id'],
