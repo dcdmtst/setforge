@@ -353,7 +353,7 @@ class ParallelPipeline(Pipeline):
 
     def _card_phase(self,key):
         if key in self.state['accepted'] or key in self.state.get('discarded_cards',{}) or key in self.state['orchestration']['card_blockers']:return None
-        if self.state['art_stops'].get(key) in ('plateau','iteration_limit','discarded'):return None
+        if self.state['art_stops'].get(key) in ('plateau','iteration_limit','discarded','replacement_pending'):return None
         latest=self.state['latest'].get(key)
         if latest and not any(h['artifact']['job_id']==latest['job_id'] for h in self.state['art_history'].get(key,[])):
             return 'card_review'
@@ -405,6 +405,9 @@ class ParallelPipeline(Pipeline):
             if phase in ('next_card','image','card_review','entity_review','art_stopped'):
                 self.state.update(phase='parallel_art',current=None,pending=None);phase='parallel_art'
             if phase=='parallel_art':
+                if self.state.get('replacement_pending') and not any(j['status'] in ACTIVE for j in self.queue.jobs()):
+                    self.state.update(phase='replacement_plan', replacement_current=next(iter(self.state['replacement_pending'])), current=None)
+                    self.save();continue
                 require_gate(self.state)
                 if sha(self.run/'allocation.json')!=self.state['allocation_gate']['file_sha256']:
                     raise ValueError('Approved allocation artifact changed.')
@@ -440,6 +443,9 @@ class ParallelPipeline(Pipeline):
                             try:self._issue('image',key);slots-=1
                             except NeedsInput:pass
                 active=[j for j in self.queue.jobs() if j['status'] in ACTIVE]
+                if self.state.get('replacement_pending') and not active:
+                    self.state.update(phase='replacement_plan', replacement_current=next(iter(self.state['replacement_pending'])), current=None)
+                    self.save();continue
                 if all(k in self.state['accepted'] for k in cards) and not active:
                     self.state.update(phase='set_review',status='running',current=None,pending=None);self.save();continue
                 if self.separate_entities and not active:
@@ -449,7 +455,10 @@ class ParallelPipeline(Pipeline):
                     for key in unresolved:
                         if deps.get(key) and self._card_phase(key)=='image':
                             self.discard_card(key,'Required identity could not be qualified; no eligible source remains.')
-                            self.state['art_stops'][key]='discarded'
+                            if self.state['art_stops'].get(key) != 'replacement_pending':self.state['art_stops'][key]='discarded'
+                    if self.state.get('replacement_pending'):
+                        self.state.update(phase='replacement_plan',replacement_current=next(iter(self.state['replacement_pending'])),current=None)
+                        self.save();continue
                     if all(k in self.state['accepted'] or k in self.state.get('discarded_cards',{}) for k in cards):
                         complete=[v['id'] for v in self.state['plan']['variants']
                                   if all(v['id']+'/'+c['id'] in self.state['accepted'] for c in v['cards'])]

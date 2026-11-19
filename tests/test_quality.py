@@ -6,7 +6,14 @@ from setforge.engine import Pipeline
 from setforge.io import read, write
 from setforge.quality import dependencies, pixel_digest
 from setforge.project import check_project
-from fixture_worker import plan, review
+from fixture_worker import plan as fixture_plan, review
+
+def plan(*args, **kwargs):
+    result=fixture_plan(*args, **kwargs)
+    for variant in result["variants"]:
+        for card in variant["cards"]:card["character_staging"]=[]
+    return result
+
 import test_pipeline as legacy
 
 

@@ -75,7 +75,10 @@ class ParallelTests(unittest.TestCase):
     def make(self, artists=2):
         from setforge.parallel import enable
         from setforge.workqueue import WorkQueue
-        pipe = enable(Pipeline.create(self.project, self.brief, self.run), artists=artists)
+        # Historical 002 queue regressions keep their one-concept snapshot.
+        # New three-candidate production is covered by test_replacements.
+        with patch('setforge.engine.replacements.policy', return_value=None):
+            pipe = enable(Pipeline.create(self.project, self.brief, self.run), artists=artists)
         self.queue = WorkQueue(self.run)
         return pipe
 

@@ -75,20 +75,41 @@ continue below. Downloading code does not supply an image generator or reference
 Acceptance requires **unrounded Q95 >= 93.5 and every mandatory gate**: physical
 construction, technical quality, reference style, class/category and canon.
 Allow at most three edits after the initial image. Plateau changes correction
-strategy; stopping below the threshold is never acceptance. An independent
+strategy. In new v2 runs, an exhausted candidate is replaced by a genuinely new
+card concept for the same slot, with at most THREE candidates total (original
+plus two replacements). Each candidate has an initial image and up to three
+edits. Reject the set only after the third candidate fails. Preserve history and
+spent attempts; a new name or another retry of the same idea is not a replacement.
+The replacement preserves slot ID, category, stars, gold, key cast count and
+entity IDs. A planner proposes it; an independent whole-composition review and
+allocation/title-fit/staging checks must pass before new art. Historical runs
+keep their saved policy. Stopping below the threshold is never acceptance. An independent
 reviewer inspects the native and thumbnail; an author never accepts their own
 card. Follow docs/art-acceptance.md and the exact saved policy/schema of each run.
 The copyable human installation prompt does not configure or override this policy.
+
+New v2 runs require explicit character_staging metadata before art. Repeated heroes need BOTH
+a different bodily pose and a different camera angle, or use visibly different
+characters. Independently compare actual images, especially neighboring cards
+in the 5x2 layout; labels and new names do not establish visual diversity.
 
 For production read docs/image-execution.md before dispatching the artists.
 Builtin imagegen accepts at most 5 total inputs, including edit target and canon.
 Use prepare-job's image_call selection; the full original input list stays available
 for inspection/review. Never hand-trim identities to make a request fit.
+The tool prompt is bounded to 28,000 characters while preserving essential
+instructions; an essential overflow or an oversized --prompt-file is rejected
+before the tool call/timer. Full immutable requests and history stay saved.
+Technical errors must not overwrite the last substantive art-direction feedback.
 Use image-start immediately before one tool call, image-finish immediately after
 with its actual PNG path (or --error). The CLI writes correct timestamps, duration,
 SHA256 and image-response.json automatically. Do not ask the producer to repair
 metadata or hand-write generation-record.json. Record unavailable capabilities
 honestly; these helpers do not supply a missing image model or revive an idle chat.
+Use --token=VALUE, since a lease token can start with '-'. Heartbeat immediately
+before preparation and again before the image call; keep long work leased.
+Recover an existing tool PNG with its original lease before considering a new
+call. Never regenerate just to repair telemetry or replace an expired lease.
 
 Future reference/style changes are documented in docs/reference-pack.md. Do not
 replace references, recalibrate scores or run a style experiment during installation
@@ -111,5 +132,8 @@ python -m setforge export --run RUN
 
 Verify the manifest says `full_delivery_ready:true`, open `RUN/report.html`,
 and check the accepted PNGs and `delivery.zip`. Report partial/rejected work
-honestly. Never rewrite scores, remove a failing card from the requested count,
+honestly: historical art passes, final set acceptance and available PNGs are
+different counts. Accepted per-card exports do not make a partial order complete;
+the full producer ZIP requires every requested set. Never rewrite scores, remove
+a failing card from the requested count,
 or add budget to get a green result.

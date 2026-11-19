@@ -5,6 +5,7 @@ pointer. Inspection cache records are explicit attestations AFTER actual viewing
 hashing/reading a file alone never marks it inspected. Keep this worker cache
 outside immutable input snapshots. No producer wishes are changed here.
 """
+import copy
 import hashlib
 import re
 import sqlite3
@@ -135,6 +136,28 @@ def _plan_basic(context, plan):
         check_concepts(plan, context.get('collection_canon', []))
 
 
+def _replacement_plan(context, card):
+    """Read-only reconstruction of one replacement; never commit a proposal."""
+    plan = copy.deepcopy(context['plan'])
+    key = context['replacement_slot']
+    matches = [(v, i, c) for v in plan['variants'] for i, c in enumerate(v['cards'])
+               if v['id'] + '/' + c['id'] == key]
+    if len(matches) != 1:
+        raise ValueError('Replacement must identify exactly one existing card slot.')
+    variant, index, previous = matches[0]
+    for field in ('id', 'background', 'stars', 'golden', 'key_character_count', 'entity_ids'):
+        if card.get(field) != previous.get(field):
+            raise ValueError('Replacement must preserve the slot allocation and identity dependencies: ' + field)
+    for attempt in context.get('rejected_candidates', []):
+        rejected = attempt['card']
+        if (card['concept']['canonical_subject'] == rejected['concept']['canonical_subject']
+                or card['subject'].strip().casefold() == rejected['subject'].strip().casefold()
+                or card['scene'].strip().casefold() == rejected['scene'].strip().casefold()):
+            raise ValueError('Replacement must be a genuinely new subject/action, not the same failed card renamed.')
+    variant['cards'][index] = copy.deepcopy(card)
+    return plan
+
+
 def preflight_response(run, job_id, response):
     """Read-only transport/semantic preflight; return pass/fail diagnostics.
 
@@ -184,20 +207,26 @@ def preflight_response(run, job_id, response):
             check('construction', lambda: validate_set(run, response, context['construction_targets']))
         if kind == 'entity_review':
             check('source_hash', lambda: _image_record(run, context['source_artifact']))
-    if kind == 'plan':
-        check('plan_structure', lambda: _plan_basic(context, response))
+    if kind in ('plan', 'replacement_plan'):
+        plan = check('replacement_slot', lambda: _replacement_plan(context, response)) if kind == 'replacement_plan' else response
+        if plan is None:
+            return result
+        check('plan_structure', lambda: _plan_basic(context, plan))
+        if context.get('character_staging_policy'):
+            from .character_staging import check_staging
+            check('character_staging', lambda: check_staging(plan, context.get('collection_canon', [])))
         for field in ('allocation_policy', 'nameplate_policy'):
             if not context.get(field):
                 result['checks'].append({'name': field, 'verdict': 'skipped', 'reason': 'No saved policy in exact request.'})
         if context.get('allocation_policy'):
             from .allocation import check as allocation_check
-            result['allocation'] = check('allocation_policy', lambda: allocation_check(response, context['allocation_policy']))
+            result['allocation'] = check('allocation_policy', lambda: allocation_check(plan, context['allocation_policy']))
         if context.get('nameplate_policy'):
             from .nameplate import preflight
             from .typography import for_run
             def names():
                 lettering=for_run(run,frozen=True)
-                report = preflight(response, context['nameplate_policy'], lettering.measure_label)
+                report = preflight(plan, context['nameplate_policy'], lettering.measure_label)
                 report['typography']=lettering.public_profile()
                 result['nameplate'] = report
                 if report['verdict'] != 'pass':

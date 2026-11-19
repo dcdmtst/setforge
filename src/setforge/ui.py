@@ -37,8 +37,17 @@ def orders(runs):
         if not (folder/'state.json').is_file():continue
         try:
             state=read(folder/'state.json');brief=read(folder/'inputs/brief.json')
+            threshold=max(93.5,state.get('art_acceptance',{}).get('threshold',93.5))
+            approved={key for key,artifact in state.get('accepted',{}).items()
+                      if artifact.get('eligible') and artifact.get('quality',0)>=threshold
+                      and state.get('art_stops',{}).get(key)=='accepted'
+                      and key not in state.get('discarded_cards',{})}
+            reviewed=set(state.get('reviewed_variants',[]))
+            ready={key for key in approved if key.split('/')[0] not in state.get('discarded_sets',{})
+                   and (state['status']=='complete' or key.split('/')[0] in reviewed)}
             item={'id':folder.name,'theme':brief['theme'],'variants':brief.get('variants',3),
-                  'ready_cards':len(state['accepted']),'status':state['status'],
+                  'ready_cards':len(ready),'art_approved_cards':len(approved),
+                  'recorded_art_passes':len(state.get('accepted',{})),'status':state['status'],
                   'report':f'/runs/{folder.name}/report.html','run':str(folder.resolve())}
             if state['status']=='complete':item['download']=f'/runs/{folder.name}/delivery.zip'
             result.append(item)
@@ -107,6 +116,10 @@ def advance_order(run):
                     from .delivery import export_bundle
                     export_bundle(run)
                     report(pipeline.run,pipeline.state)
+                elif pipeline.state['status']=='completed_with_rejections':
+                    from .delivery import save_manifest
+                    save_manifest(run)
+                    report(pipeline.run,pipeline.state)
                 return
             stop.wait(.25)
     finally:
@@ -125,7 +138,13 @@ def make_server(project,runs,port=8840,*,artists=2,reviewers=2,workers=None):
             self.send_header('Content-Type',content_type)
             self.send_header('Content-Length',str(len(payload)))
             self.send_header('Cache-Control','no-store')
-            self.end_headers();self.wfile.write(payload)
+            self.end_headers()
+            # Bound each send instead of handing Winsock a multi-megabyte buffer
+            # immediately before HTTP/1.0 closes the connection. That can lose
+            # the final queued bytes on Windows, despite a successful sendall.
+            for offset in range(0,len(payload),64*1024):
+                self.wfile.write(payload[offset:offset+64*1024])
+            self.wfile.flush()
         def valid_host(self):
             return self.headers.get('Host') in {f'127.0.0.1:{self.server.server_port}',f'localhost:{self.server.server_port}'}
         def do_GET(self):

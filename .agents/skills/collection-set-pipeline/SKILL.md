@@ -45,16 +45,19 @@ Only coordinator runs `coordinate --run RUN` and changes shared state/canon.
 Only chief does full-plan and full-set review. A worker cannot review ANY version
 of a card it generated, its entity source, or a set containing it. Switching aliases
 is not independence. If no independent executor exists, obtain one or human review.
+The planner proposes replacement_plan; the independent chief handles
+replacement_review of the complete proposed composition before replacement art.
 
 Read docs/parallel-workers.md for queue, recovery and timing details.
 
 ```text
 setforge coordinate --run RUN
 setforge claim --run RUN --worker artist-1 --role flex --wait-seconds 5
+setforge heartbeat --run RUN --job JOB --worker artist-1 --token=TOKEN --lease-seconds 900
 setforge prepare-job --run RUN --job JOB --worker artist-1
-setforge heartbeat --run RUN --job JOB --worker artist-1 --token TOKEN --lease-seconds 900
+setforge heartbeat --run RUN --job JOB --worker artist-1 --token=TOKEN --lease-seconds 900
 setforge validate-response --run RUN --job JOB --response ANSWER.json
-setforge deliver --run RUN --job JOB --worker artist-1 --token TOKEN --response ANSWER.json --model ACTUAL_MODEL
+setforge deliver --run RUN --job JOB --worker artist-1 --token=TOKEN --response ANSWER.json --model ACTUAL_MODEL
 ```
 
 Use the returned exact job ID/token, request.json and schema.json. A chief uses
@@ -75,6 +78,15 @@ two of each rank (a project choice, not a claimed reference law). Every set has 
 categories 1–4 independent of stars. Category 5 is an additional golden scene with
 one/two key characters, not a substitute for 1–4. Ordinary characters can appear
 without gold. Character and no-gold policies are independent. Read docs/allocation.md.
+
+New v2 runs require character_staging for every card: one entry per key character,
+or [] without key characters. Use stable character IDs (canon IDs for recurring
+heroes), stance, gesture, concrete action, camera azimuth and elevation. The same
+hero must change BOTH bodily pose and camera angle between appearances, or use
+visibly different heroes. Check all repeated appearances, plus adjacent character
+cards in the 5x2 layout. A new name, mirrored pose or different prop does not
+establish diversity. Planning tags supplement independent visual review; they
+cannot prove that the rendered scenes actually differ.
 
 English set/card titles only.
 Choose the project/order font before art (default Lithos Pro Black). If missing,
@@ -105,9 +117,17 @@ then card-specific original style references, then global originals. Byte-identi
 inputs share a slot with recorded role aliases. Inspect the full immutable inputs;
 send only the prepared selected paths. The CLI records omissions, never silently
 drops identity. Review jobs retain their full inputs and are not capped to five.
+The prepared tool prompt is bounded to 28,000 characters while preserving the
+essential brief/wishes, current card/class, style, canon, input roles, physical
+constraints and targeted art feedback. Full immutable requests/history remain
+saved. Essential overflow or an oversized --prompt-file fails BEFORE timer/tool
+dispatch; never manually remove requirements to fit. Technical errors are recorded
+separately and must not overwrite the last substantive art-direction feedback.
 
 Finish input inspection/prompt work BEFORE `image-start --run RUN --job JOB
---worker WORKER --token TOKEN`. Pass its exact prompt/paths to ONE imagegen call,
+--worker WORKER --token=TOKEN`. Heartbeat immediately before preparation and again
+before the tool call; keep long work leased. Always use --token=VALUE because
+tokens may start with '-'. Pass the exact prepared prompt/paths to ONE imagegen call,
 then immediately `image-finish ... --image ABSOLUTE_TOOL_PNG`. The CLI writes
 UTC boundaries, seconds, hashes, tool/worker/model and image-response.json; do not
 hand-transcribe those fields. Deliver that response via the existing lease.
@@ -149,12 +169,25 @@ successful aspects. Recheck regressions. Read docs/art-acceptance.md.
 
 Initial iteration 0, at most THREE edits. Two consecutive edits gaining < 0.5 over
 best eligible score signal plateau: change correction strategy, not early pass/stop.
-If still failing after edit 3, discard unaccepted; a set missing ten accepted cards
-fails. Continue independent jobs. Do not reset counters, silently replan indefinitely,
-raise scores or manufacture reviewer identities to finish. Existing snapshots retain
-their policy; amendments require explicit producer instruction.
+For new v2 runs, failure after edit 3 discards the current candidate and starts a
+genuinely new card concept for the same slot. Maximum THREE candidates total:
+the original plus two replacements, each with initial image + up to three edits.
+Only failure of the third candidate rejects the set. replacement_plan preserves
+slot ID/category/stars/gold/key_character_count/entity_ids; independent
+replacement_review evaluates the whole proposed composition. Allocation, English
+name fit and character staging must pass again BEFORE art. Preserve every old
+concept, PNG, review and spent attempt. Renaming the same idea is not a new
+candidate. Continue independent jobs. Do not reset counters, silently replan
+indefinitely, raise scores or manufacture reviewer identities to finish. Existing
+snapshots retain their policy; amendments require explicit producer instruction.
 
-Expired image leases are uncertain: recover existing output first. Do not generate
+At card/set review compare actual repeated characters: changed pose AND changed
+camera, including native and thumbnail checks. Fail visually repeated staging even
+when tags differ. Mandatory native framing/margins and essential construction
+defects are hard blockers; a score at or above 93.5 cannot compensate for them.
+
+Expired image leases are uncertain: recover existing output first using its
+original job/lease token and documented reconciliation. Do not generate
 again until the original operation is confirmed finished without recoverable result.
 Only then use reconcile with evidence. Abandon records a failed attempt, never a
 hidden retry. See docs/parallel-workers.md.
@@ -166,7 +199,9 @@ Run `result-manifest --run RUN`, require full_delivery_ready:true, then
 `export --run RUN`. Inspect report.html, result-manifest.json and delivery.zip.
 ZIP contains only accepted native/game PNGs, presentation and timing files. Private
 full-history pack is separate. Rejected/partial work gets an honest report/manifest,
-not an accepted ZIP. Show actual paths/links and unresolved failures.
+not an accepted full ZIP. Distinguish historical art passes, final set acceptance
+and available exported PNGs. Accepted per-card files may exist in a partial order;
+they do not establish full_delivery_ready. Show actual paths/links and unresolved failures.
 
 `canon-publish` is explicit cross-run promotion of accepted scoped identity. Old
 runs stay unchanged. Never publish references, outputs, local config or history

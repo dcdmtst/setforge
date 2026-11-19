@@ -3,6 +3,7 @@ import os
 from pathlib import Path
 import platform
 import shutil
+import struct
 import subprocess
 import time
 import webbrowser
@@ -39,7 +40,8 @@ def font_paths():
     if system=='Windows':
         roots=[Path(os.environ.get('WINDIR','C:/Windows'))/'Fonts',
                Path(os.environ.get('LOCALAPPDATA',home/'AppData/Local'))/'Microsoft/Windows/Fonts',
-               Path(os.environ.get('APPDATA',home/'AppData/Roaming'))/'Adobe/CoreSync/plugins/livetype/.r']
+               Path(os.environ.get('APPDATA',home/'AppData/Roaming'))/'Adobe/CoreSync/plugins/livetype/.r',
+               Path(os.environ.get('APPDATA',home/'AppData/Roaming'))/'Adobe/CoreSync/plugins/livetype/r']
         import winreg
         for hive in (winreg.HKEY_CURRENT_USER,winreg.HKEY_LOCAL_MACHINE):
             try:
@@ -57,9 +59,29 @@ def font_paths():
     for root in roots:
         if root.is_dir():
             for path in root.rglob('*'):
-                if path.is_file() and (path.suffix.lower() in ('.ttf','.otf') or root.name=='.r'):
+                if path.is_file() and (path.suffix.lower() in ('.ttf','.otf') or root.name in ('.r','r')):
                     yield path
 
+
+def _font_aliases(path):
+    """Read published SFNT names; Adobe may expose a numeric FreeType style."""
+    try:
+        data=Path(path).read_bytes()
+        if len(data)>20_000_000:return []
+        count=struct.unpack_from('>H',data,4)[0]
+        for index in range(count):
+            tag,_,offset,length=struct.unpack_from('>4sIII',data,12+16*index)
+            if tag!=b'name':continue
+            _,rows,strings=struct.unpack_from('>HHH',data,offset)
+            result=[]
+            for row in range(rows):
+                platform_id,encoding,_,name_id,size,start=struct.unpack_from('>HHHHHH',data,offset+6+12*row)
+                if name_id not in (4,6):continue
+                raw=data[offset+strings+start:offset+strings+start+size]
+                result.append(raw.decode('utf-16-be' if platform_id in (0,3) else 'mac_roman'))
+            return result
+    except (OSError,ValueError,struct.error,UnicodeError):pass
+    return []
 
 def installed_fonts(force=False):
     global _cache
@@ -71,7 +93,7 @@ def installed_fonts(force=False):
         try:
             if path.stat().st_size>20_000_000:continue
             family,style=ImageFont.truetype(str(path),64).getname()
-            found.append({'name':family+' '+style,'family':family,'style':style,'path':str(path)})
+            found.append({'name':family+' '+style,'family':family,'style':style,'path':str(path),'aliases':_font_aliases(path)})
         except (OSError,ValueError):continue
     _cache=(time.monotonic(),found)
     return found
@@ -91,7 +113,7 @@ def find_profile(project,name):
         lettering=Lettering(saved)
         if lettering.font is not None:return {**saved,'requested':name}
     fonts=installed_fonts()
-    exact=[f for f in fonts if key(f['name'])==key(name)]
+    exact=[f for f in fonts if key(name) in {key(f['name']),*(key(a) for a in f.get('aliases',[]))}]
     choices=exact or [f for f in fonts if key(f['family'])==key(name)]
     choices.sort(key=lambda f:(f['style'].lower() not in ('regular','normal','roman'),f['name'],f['path']))
     for item in choices:

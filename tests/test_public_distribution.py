@@ -8,6 +8,7 @@ import tempfile
 import threading
 import unittest
 from http.client import HTTPConnection
+from urllib.request import urlopen
 from unittest.mock import patch
 import zipfile
 
@@ -87,6 +88,45 @@ class DistributionTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'escapes'):configure(self.project,folder)
         self.assertEqual(check_project(self.project)[1][0]['id'],'sample')
 
+    def test_large_report_transfers_entire_body_before_connection_close(self):
+        run=self.root/'orders'/'large';run.mkdir(parents=True)
+        payload=b'<!doctype html><html>'+bytes(range(256))*8996+b'</html>'
+        (run/'report.html').write_bytes(payload)
+        server=make_server(self.project,run.parent,0)
+        threading.Thread(target=server.serve_forever,daemon=True).start()
+        self.addCleanup(server.server_close);self.addCleanup(server.shutdown)
+        for _ in range(5):
+            with urlopen(f'http://127.0.0.1:{server.server_port}/runs/large/report.html',timeout=5) as response:
+                self.assertEqual(int(response.headers['Content-Length']),len(payload))
+                self.assertEqual(response.read(),payload)
+
+    def test_rejected_order_exports_valid_art_without_claiming_full_delivery(self):
+        run=self.completed_fixture();state=read(run/'state.json')
+        state.update(status='completed_with_rejections',reviewed_variants=['v2','v3'],
+                     discarded_sets={'v1':{'reason':'Three candidates failed'}})
+        state['accepted'].pop('v1/c10');write(run/'state.json',state)
+        import shutil
+        shutil.rmtree(run/'exports')
+        value=result_manifest(run)
+        self.assertFalse(value['full_delivery_ready'])
+        self.assertEqual(value['recorded_art_passes'],29)
+        self.assertEqual(value['art_approved_cards'],29)
+        self.assertEqual(value['accepted_cards'],29)
+        self.assertEqual(value['deliverable_cards'],20)
+        self.assertEqual(len(read(run/'exports/manifest.json')),29)
+        for group in value['variants']:
+            for card in group['cards']:
+                if not card['accepted']:continue
+                self.assertEqual(card['deliverable'],group['id'] in ('v2','v3'))
+                with Image.open(run/card['available_path']) as image:self.assertEqual(image.size,(430,480))
+        with self.assertRaisesRegex(ValueError,'not accepted'):export_bundle(run)
+        self.assertFalse((run/'delivery.zip').exists())
+        from setforge.ui import orders
+        item=orders(run.parent)[0]
+        self.assertEqual(item['ready_cards'],20)
+        self.assertEqual(item['art_approved_cards'],29)
+        self.assertNotIn('download',item)
+
     def test_duplicate_reference_ids_do_not_replace_project(self):
         folder=self.pack();spec=read(folder/'style-pack.json');spec['references']*=2;write(folder/'style-pack.json',spec)
         with self.assertRaisesRegex(ValueError,'distinct'):configure(self.project,folder)
@@ -124,6 +164,8 @@ class DistributionTests(unittest.TestCase):
             for group in public['variants']:
                 for card in group['cards']:
                     self.assertIn(card['path'],names);self.assertIn(card['native_path'],names)
+                    self.assertIn(card['available_path'],names)
+                    self.assertIn(card['available_native_path'],names)
             page=archive.read('report.html').decode()
             self.assertEqual(page.count('data-variant='),3);self.assertNotIn('href="audit.html"',page)
             self.assertNotIn('href="delivery.zip"',page)

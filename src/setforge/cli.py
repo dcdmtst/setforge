@@ -334,6 +334,9 @@ def coordinate(args):
                     contact_sheets(run, pipeline.state, pipeline.config)
                 report(run, pipeline.state)
             result = status(pipeline)
+        if result['status'] in ('complete','completed_with_rejections'):
+            from .delivery import save_manifest
+            save_manifest(run)
         first = False
         terminal = result['status'] in ('complete', 'completed_with_rejections', 'needs_attention', 'waiting_for_selection')
         if not args.watch or terminal:

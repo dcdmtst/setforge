@@ -31,6 +31,14 @@ card explicitly; secondary appearances must wait for that source. Preserve the
 same invariants across camera, scale and lighting changes. A background glimpse
 must not become the identity master. Existing collection canon stays versioned.
 
+When the run carries character_staging_policy, every card has explicit staging:
+one entry per key character, none for a pure prop. Preserve stable identities.
+Repeated heroes must change BOTH bodily pose and camera angle, or use visibly
+different characters. Compare all appearances of each hero, including collection
+identities across sets; inspect adjacent character cards in the final 5x2 layout.
+Different names, props, expression or a mirrored pose do not establish variety.
+Stance/gesture and camera tags are planning assertions, not proof of the pixels.
+
 ## Idea acceptance
 
 Read the complete 3–5 variants, not only a title list. For each questionable card
@@ -69,6 +77,11 @@ invent a room, floor or horizon to make framing space. Category 1 retains floati
 separation from its detached shadow rather than gaining a supporting surface.
 Respect configured aspect ratio. If evidence is too small or unavailable, use
 uncertain; do not invent full-resolution inspection from a browser thumbnail.
+Mandatory native framing constraints are hard gates: a high Q95 cannot excuse
+an incomplete silhouette or visibly unmet clear margin. At card/set review, reject
+a repeated hero's same bodily pose OR same camera angle even if its staging tags
+differ. Inspect the actual action, perspective and silhouette at native and
+thumbnail scales; report an actionable blocking visual-diversity finding.
 
 ## Findings and retries
 
@@ -86,9 +99,19 @@ measure the false-acceptance rate of an independent judge.
 Current default: unrounded Q95 >= 93.5 plus all card gates, initial image plus
 at most three edits. A plateau (two gains below 0.5 against the eligible best)
 signals a strategy change, not early termination. Exhaust the remaining edits
-unless accepted or a real budget/technical blocker intervenes. Discard a failed
-card after the limit; a set missing one of ten accepted cards is rejected, not
-quietly delivered as nine. No unbounded replan or counter reset.
+unless accepted or a real budget/technical blocker intervenes. The saved run
+policy controls what happens next; never apply a new policy retroactively.
+For new v2 runs with replacement_policy, discard the failing concept candidate
+after its edits and propose a genuinely new card for the same slot. At most THREE
+distinct concepts total: original plus two replacements, each with initial image
+and up to three edits. Only failure of the third candidate rejects the set.
+replacement_plan preserves slot ID, category, stars, gold, key-character count
+and entity IDs. An independent replacement_review checks the complete proposed
+composition; allocation, English title fit and staging must pass before art.
+Preserve every previous concept, PNG, review and spent attempt. A different name
+for the same idea is not a replacement. Existing runs without replacement_policy
+keep their saved stopping rule. No unbounded replan or counter reset; nine cards
+are never quietly delivered as a complete ten-card set.
 
 Approve a recurring entity visually as a separate decision: readable full view,
 identity, invariants, geometry, materials and exact source version. Food or

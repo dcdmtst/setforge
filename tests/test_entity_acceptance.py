@@ -189,7 +189,8 @@ class EntityAcceptanceTests(unittest.TestCase):
         self.assertTrue(whole_set_jobs, 'Fully accepted other sets still receive set review')
         for job in whole_set_jobs:
             reviewed = read(self.run/'jobs'/job['id']/'request.json')['context']['plan']['variants']
-            self.assertEqual({v['id'] for v in reviewed}, {'v2', 'v3'})
+            self.assertEqual({v['id'] for v in reviewed}, {'v1', 'v2', 'v3'})
+            self.assertEqual(read(self.run/'jobs'/job['id']/'request.json')['context']['delivery_variant_ids'],['v2','v3'])
             self.assertTrue(all(len(v['cards']) == 10 for v in reviewed))
         self.assertNotEqual(pipe.state['status'], 'complete')
         self.assertFalse(list((self.run/'exports').rglob('*.png')))

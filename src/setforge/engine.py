@@ -20,6 +20,7 @@ from .acceptance import policy as art_policy, score as art_score, decide as art_
 from .schemas import scored_card_review
 from .schemas import production_plan, ENTITY_REVIEW
 from .allocation import policy as allocation_policy, check as check_allocation, require_gate
+from . import replacements
 
 CRITERIA = {
     "brief_review": ["clarity", "conflicts"],
@@ -44,6 +45,11 @@ class Pipeline:
         self.allocated = 'allocation_policy' in self.state
         if self.allocated:
             self.plan_schema = production_plan(self.config.get('schema_version', 1), wishes_response='production_contract' in self.state)
+        if self.state.get("character_staging_policy"):
+            from .character_staging import staging_schema
+            card_schema=self.plan_schema["properties"]["variants"]["items"]["properties"]["cards"]["items"]
+            card_schema["properties"]["character_staging"]=staging_schema()
+            card_schema["required"].append("character_staging")
         for name, extra in self.state.get("limit_extensions", {}).items():
             self.config["limits"][name] += extra
         self.brief = read(self.run / "inputs/brief.json")
@@ -87,6 +93,16 @@ class Pipeline:
                      "jobs": [], "reason": "", "input_manifest_sha256": sha(run / "inputs/manifest.json")}
             state.update(art_acceptance=art_policy(), art_history={}, art_stops={}, art_invalidated=[])
             state.update(allocation_policy=allocation, allocation_gate=None)
+            if config.get("schema_version", 1) == 2:
+                from .character_staging import policy as staging_policy
+                state.update(replacement_policy=replacements.policy(), card_candidates={}, replacement_pending={},
+                             character_staging_policy=staging_policy())
+                for filename, value in (("replacement-policy.json", state["replacement_policy"]),
+                                        ("character-staging-policy.json", state["character_staging_policy"])):
+                    write(run/"inputs"/filename, value)
+                    manifest.append({"path": "inputs/"+filename, "sha256": sha(run/"inputs"/filename)})
+                write(run/"inputs/manifest.json", manifest)
+                state["input_manifest_sha256"]=sha(run/"inputs/manifest.json")
             if config.get('schema_version',1) == 2:
                 from .construction import policy as construction_policy
                 state['construction_policy'] = construction_policy()
@@ -132,6 +148,11 @@ class Pipeline:
         raise NeedsInput(reason)
 
     def check_snapshot(self):
+        for field, filename in (('replacement_policy','replacement-policy.json'),
+                                ('character_staging_policy','character-staging-policy.json')):
+            path=self.run/'inputs'/filename
+            if path.exists() and self.state.get(field)!=read(path):
+                raise ValueError(field+' differs from its immutable snapshot.')
         construction = (read(self.run/'inputs/construction-policy.json')
                         if (self.run/'inputs/construction-policy.json').exists() else None)
         for amendment in self.state.get('producer_revisions', []):
@@ -209,6 +230,7 @@ class Pipeline:
         self.save()
 
     def discard_card(self, key, reason):
+        if replacements.exhausted(self, key, reason):return
         self.state['accepted'].pop(key, None)
         self.state.setdefault('discarded_cards', {})[key] = {'reason': reason, 'time': now()}
         variant_id=key.split('/')[0]
@@ -261,6 +283,9 @@ class Pipeline:
 
     def validate_plan(self, plan):
         validate(plan, self.plan_schema)
+        if self.state.get("character_staging_policy"):
+            from .character_staging import check_staging
+            check_staging(plan, self.state["canon"])
         if len(plan["variants"]) != self.brief["variants"]:
             raise ValueError("Variant count differs from the brief.")
         variant_ids, global_entities = set(), {e["id"]: e for e in self.state["canon"] if e["scope"] == "collection"}
@@ -330,6 +355,8 @@ class Pipeline:
             names += ['rarity_assignment', 'category_assignment', 'cast_policy']
         if 'production_contract' in self.state and phase in ('plan_review','card_review','set_review'):
             names += ['producer_wishes']
+        if self.state.get("character_staging_policy") and phase in ("plan_review", "card_review", "set_review"):
+            names += ["character_staging"]
         if self.state.get('construction_policy') and phase == 'set_review':
             names += ['construction']
         return names
@@ -337,7 +364,8 @@ class Pipeline:
     def art_history(self, key):
         invalid = set(self.state.get('art_invalidated', []))
         return [{**r, 'eligible': r['eligible'] and r['artifact']['job_id'] not in invalid}
-                for r in self.state.get('art_history', {}).get(key, [])]
+                for r in self.state.get('art_history', {}).get(key, [])
+                if not self.state.get('replacement_policy') or r.get('candidate', 1) == replacements.number(self.state, key)]
 
     def best_art(self, key):
         eligible = [r for r in self.art_history(key) if r['eligible']]
@@ -483,6 +511,28 @@ class Pipeline:
                                 'Rewrite long names first; if no meaningful short synonym fits, replace the card concept. '
                                 'Never shrink the font, clip, add ellipsis or widen the card to make a title pass. '
                                 'The code measures pixel width with the delivered bitmap letterforms, not character count. ')
+        elif phase == 'replacement_plan':
+            key=self.state['replacement_current']; variant, card=self.find(key)
+            role='planner'; schema=copy.deepcopy(self.plan_schema['properties']['variants']['items']['properties']['cards']['items'])
+            context.update(plan=self.state['plan'], variant=variant, card=card, replacement_slot=key,
+                           rejected_candidates=self.state['card_candidates'][key]['history'], reference_catalog=self.refs,
+                           collection_canon=self.state['canon'])
+            images=self.references(variant, card)+self.canon_images()
+            instruction=('Propose ONE genuinely different replacement card for this failed slot. Return only the new card JSON. '
+                         'Preserve id, category/background, stars, golden, key_character_count and entity_ids. '
+                         'Change the underlying subject/action and scene, not merely the label or camera of the failed concept. '
+                         'Keep all other nine cards unchanged; avoid semantic duplicates, preserve recurring identity only, '
+                         'use a short fitting English title. Do not generate art until independent review passes.')
+        elif phase == 'replacement_review':
+            key=self.state['replacement_current']
+            context.update(plan=replacements.proposed_plan(self, self.state['replacement_proposal']),
+                           replacement_slot=key, rejected_candidates=self.state['card_candidates'][key]['history'],
+                           collection_canon=self.state['canon'])
+            images=self.references()+self.canon_images()
+            instruction=('Independently review the whole proposed composition, particularly the new replacement slot. '
+                         'It must be a genuinely different concept from every rejected candidate, fit allocation, '
+                         'English title, producer wishes, character staging, and preserve the other nine cards. '
+                         'Pass only if ready for new art. Failed proposals return to planning; they do not consume an art candidate.')
         elif phase == "plan_review":
             context.update(plan=self.state["plan"], collection_canon=self.state["canon"])
             images = self.references() + self.canon_images()
@@ -570,8 +620,7 @@ class Pipeline:
             context.update(plan=self.state["plan"], collection_canon=self.state["canon"])
             if self.state.get('discarded_sets'):
                 ids=self.state.get('review_variant_ids',[])
-                context.update(plan={'variants':[v for v in self.state['plan']['variants'] if v['id'] in ids]},
-                               composition_options=self.state['plan'],discarded_sets=self.state['discarded_sets'])
+                context.update(delivery_variant_ids=ids, discarded_sets=self.state['discarded_sets'])
             if self.production_ids():
                 context["plan"] = {"variants": [v for v in self.state["plan"]["variants"]
                                                  if v["id"] in self.production_ids()]}
@@ -585,7 +634,8 @@ class Pipeline:
             # sheets keep remote vision inputs small enough for normal models.
             context["accepted_images"] = self.state["accepted"]
             if self.state.get('discarded_sets'):
-                context['accepted_images']={k:a for k,a in self.state['accepted'].items() if k.split('/')[0] in self.state.get('review_variant_ids',[])}
+                instruction_scope='Audit all accepted_images and construction targets, including historical cards in rejected sets; only delivery_variant_ids are eligible as complete sets.'
+                context['audit_scope_note']=instruction_scope
             instruction = ("Compare all complete sets and their contact sheets. Check thematic coherence, "
                            "semantic/visual variety, common art quality, genre interpretation and differences "
                            "between variants. Avoid imposing identical palettes/backgrounds. For local defects "
@@ -593,13 +643,23 @@ class Pipeline:
                            "For a defective composition return action=replan. Do not approve incomplete sets.")
         else:
             raise ValueError(f"Unknown phase: {phase}")
+        if self.state.get('character_staging_policy') and phase in ('plan','plan_review','image','card_review','set_review','replacement_plan','replacement_review'):
+            from .character_staging import PLANNING_GUIDANCE, REVIEW_GUIDANCE
+            context['character_staging_policy']=self.state['character_staging_policy']
+            instruction += '\n' + (PLANNING_GUIDANCE if phase in ('plan','replacement_plan','image') else REVIEW_GUIDANCE)
+        if phase in ('image','card_review') and self.state.get('replacement_policy'):
+            context['card_candidate']=replacements.number(self.state, key)
         task_key = f"{phase}:{key}"
+        if phase.startswith('replacement_'):
+            task_key += ':candidate-' + str(self.state['replacement_pending'][key]['next_candidate'])
+        if task_key in self.state.get('execution_errors', {}):context['execution_error']=self.state['execution_errors'][task_key]
         feedback = self.state["feedback"].get(task_key, "")
         if phase == "image":
             feedback = self.state["feedback"].get("image:" + key, feedback)
-        if phase in CRITERIA:
+        review_phase="plan_review" if phase == "replacement_review" else phase
+        if review_phase in CRITERIA:
             instruction += (" Return one criterion for EACH of these exact names: "
-                            + ", ".join(self.criteria(phase))
+                            + ", ".join(self.criteria(review_phase))
                             + ". Every verdict needs concrete evidence. Any failed criterion means fail; "
                               "any uncertainty means uncertain. On pass use action=none and affected_cards=[]. "
                               "A conflict needing producer input uses action=clarify. "
@@ -627,8 +687,8 @@ class Pipeline:
         request = {"protocol_version": 1, "kind": phase, "task_key": task_key,
                    "instruction": instruction, "context": context, "feedback": feedback,
                    "images": images, "output_schema": schema}
-        if phase in CRITERIA:
-            request["required_criteria"] = self.criteria(phase)
+        if review_phase in CRITERIA:
+            request["required_criteria"] = self.criteria(review_phase)
         if phase == "image" and self.config["providers"]["image"].get("text_only_draft", False):
             if any(i["role"].startswith(("canon:", "edit_target:")) for i in images):
                 raise ValueError("Text-only draft worker cannot preserve image canon or perform edits")
@@ -673,6 +733,8 @@ class Pipeline:
         limits, state = self.config["limits"], self.state
         key = request["task_key"]
         attempt_key, attempt_limit = key, limits['max_attempts_per_task']
+        if self.state.get("replacement_policy") and request["kind"] == "image":
+            attempt_key += ":candidate-" + str(replacements.number(state, state["current"]))
         if self.scored_art and request['kind'] == 'image':
             attempt_limit = state['art_acceptance']['max_edits'] + 1
             if state['art_stops'].get(state['current']) in ('plateau', 'iteration_limit', 'discarded'):
@@ -682,7 +744,9 @@ class Pipeline:
         if state["task_attempts"].get(attempt_key, 0) >= attempt_limit:
             if request['kind']=='image' and self.separate_entities:
                 key=state['current'];self.discard_card(key,'Initial generation and three edit attempts exhausted, including recorded generator failures.')
-                state['art_stops'][key]='discarded';state.update(phase='next_card',pending=None)
+
+                if state['art_stops'].get(key) != 'replacement_pending':state['art_stops'][key]='discarded'
+                state.update(phase='next_card',pending=None)
                 self.save();return
             self.block(f"Attempt limit reached for {key}. Inspect the history before continuing.")
         cost = self.config["providers"][role]["estimated_cost"]
@@ -722,8 +786,8 @@ class Pipeline:
         phase = request["kind"]
         if self.allocated and phase in ('image', 'card_review', 'set_review'):
             require_gate(self.state)
-        if phase in CRITERIA:
-            self.validate_review(response, phase)
+        if phase in CRITERIA or phase == "replacement_review":
+            self.validate_review(response, "plan_review" if phase == "replacement_review" else phase)
         if phase == "image":
             response = self.import_image(response, job)
         write(job / "response.json", response)
@@ -734,7 +798,18 @@ class Pipeline:
         record.update(status="received", executor=executor, model=model)
         self.state["pending"] = None
         event(self.run, "response_received", id=pending["id"], verdict=response.get("verdict"))
-        if phase == "plan":
+        if phase == 'replacement_plan':
+            try:replacements.proposed_plan(self, response)
+            except ValueError as exc:
+                record.update(status='rejected', reason=str(exc));self.state['feedback'][pending['task_key']]=str(exc)
+                self.save();return
+            self.state.update(replacement_proposal=response, phase='replacement_review')
+        elif phase == 'replacement_review':
+            if response['verdict']=='pass':replacements.commit(self)
+            else:
+                self.state['feedback']['replacement_plan:'+self.state['replacement_current']+':candidate-'+str(self.state['replacement_pending'][self.state['replacement_current']]['next_candidate'])]=response
+                self.state['phase']='replacement_plan'
+        elif phase == "plan":
             try:
                 self.validate_plan(response)
             except ValueError as exc:
@@ -904,7 +979,7 @@ class Pipeline:
         card = self.find(key)[1]
         if self.allocated:
             eligible = eligible and art['observed_category'] == card['background']
-        entry = {'iteration': len(history), 'quality': art_score(art['scores']),
+        entry = {'iteration': len(self.art_history(key)), 'candidate': replacements.number(self.state, key), 'quality': art_score(art['scores']),
                  'eligible': eligible, 'artifact': copy.deepcopy(self.state['latest'][key]),
                  'review_job': getattr(self, '_active_job_id', self.state['jobs'][-1]['id']), **copy.deepcopy(art)}
         if 'construction_review' in review:
@@ -951,6 +1026,10 @@ class Pipeline:
                 invalid.update(r['artifact']['job_id'] for r in history)
                 self.state['art_stops'][key] = 'replan_invalidated'
             self.state['art_invalidated'] = sorted(invalid)
+        if self.state.get('replacement_pending'):
+            event(self.run,'pending_replacements_retired_by_replan',cards=sorted(self.state['replacement_pending']))
+        self.state['replacement_pending']={}
+        self.state.pop('replacement_current',None);self.state.pop('replacement_proposal',None)
         self.state.update(accepted={}, latest={}, plan=None, phase='plan')
         if self.allocated:
             self.state['allocation_gate'] = None
@@ -978,7 +1057,8 @@ class Pipeline:
     def provider_failure(self, error):
         pending = self.state["pending"]
         next(j for j in self.state['jobs'] if j['id'] == pending['id']).update(status="error", reason=str(error))
-        self.state["feedback"][pending["task_key"]] = str(error)
+        self.state.setdefault('execution_errors', {})[pending['task_key']] = str(error)
+        if pending['role'] != 'image':self.state['feedback'][pending['task_key']] = str(error)
         event(self.run, "provider_error", id=pending["id"], reason=str(error))
         self.state["pending"] = None
         self.save()
@@ -1005,6 +1085,9 @@ class Pipeline:
                 self.save()
                 raise NeedsInput(self.state["reason"])
             if phase == "next_card":
+                if self.state.get('replacement_pending'):
+                    self.state.update(replacement_current=next(iter(self.state['replacement_pending'])), phase='replacement_plan')
+                    self.save();continue
                 if self.separate_entities:
                     targets=self.entity_review_targets()
                     if targets:
@@ -1019,7 +1102,7 @@ class Pipeline:
                                 for _,_,k in self.cards():
                                     if k not in self.state['accepted'] and k not in self.state.get('discarded_cards',{}):
                                         self.discard_card(k,'Required identity could not be qualified; no eligible source remains.')
-                                        self.state['art_stops'][k]='discarded'
+                                        if self.state['art_stops'].get(k) != 'replacement_pending':self.state['art_stops'][k]='discarded'
                                 self.state['phase']='next_card';self.save();continue
                             self.block("No eligible card: unresolved canon dependency")
                     self.state.update(current=remaining[0], phase="image")

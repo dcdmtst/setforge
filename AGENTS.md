@@ -19,6 +19,10 @@ explicit owner instruction. See docs/contributing.md.
 - Before art, review concepts for distinctness and interest, assign all four
   categories to each set, stars, gold and cast, and pass English title pixel-fit
   QA. Characters, gold and stars are separate decisions. No invented drop rates.
+- New v2 runs require explicit character_staging metadata. For the same hero, change
+  BOTH the bodily pose and camera angle between appearances, or use visibly
+  different characters. Independently compare actual native/thumbnail images and
+  neighboring cards in the 5x2 layout; different tags or names are not proof.
 - Choose the requested font before title QA (default Lithos Pro Black). If absent,
   ask install or default Aileron; docs/typography.md has OS-specific instructions
   and explicit auto-install. CI may use --missing-font default. Persist the actual
@@ -36,8 +40,15 @@ explicit owner instruction. See docs/contributing.md.
   reviewers, obtain another executor or human review; do not claim acceptance.
 - Review actual images at native and thumbnail size. Q95 ≥ 93.5 **unrounded**,
   nine dimensions and all hard gates. Up to 3 edits after iteration 0. Plateau
-  changes correction strategy. At the cap discard a failing card; the incomplete
-  set fails. Continue unrelated jobs; stop below threshold is never a pass.
+  changes correction strategy. New v2 runs allow at most THREE distinct concept
+  candidates per slot: original plus two replacements, each with its own initial
+  image and up to 3 edits. After a candidate exhausts its edits, plan a genuinely
+  new card, preserving the slot's ID/category/stars/gold/key cast/entity IDs.
+  Independently review the replacement in the whole composition and recheck
+  allocation, title fit and staging BEFORE its art. Reject the set only after
+  the third candidate fails. Preserve every candidate and spent attempt; no
+  renaming/resetting the same concept. Continue unrelated jobs. A below-threshold
+  stop is never acceptance. Historical runs keep their saved policy.
 - Before scores, audit physical construction: whole/parts, joints, lid or drawer
   travel/closed fit, support and actor contact. New jobs require exact-pixel
   construction_review; unconvincing essential assembly blocks acceptance regardless
@@ -52,12 +63,20 @@ explicit owner instruction. See docs/contributing.md.
   full inputs; send only selected paths. Wrap one tool call in image-start and
   image-finish. The CLI writes timestamps, hashes and response JSON; do not
   hand-transcribe metadata or silently retry an already recorded attempt.
+  Tool prompts are bounded to 28,000 characters without losing essential brief,
+  canon or targeted feedback; an essential overflow fails before dispatch. Full
+  requests/history remain saved. Technical errors never replace art feedback.
+  Use --token=VALUE (tokens may begin with '-'); heartbeat immediately before
+  preparation and the tool call, and keep long work leased. Recover a recorded
+  PNG with its original lease instead of silently generating another image.
 - Additional cash budget is 0 by default. Capability checks generate nothing.
   Optional generator probes need explicit user request/approval and zero-cash
   tools. Credentials stay in environment variables and out of commands/logs.
 - Finish with `coordinate`, `result-manifest`, `export`. A complete producer ZIP
   is separate from the private full-history `pack`. Display report and ZIP links.
-  Failed orders have an honest manifest and report, not a supposedly accepted ZIP.
+  Report historical art passes, final set acceptance and available PNG exports
+  separately. Partial orders may expose accepted per-card files, but never a
+  supposedly complete producer ZIP or full_delivery_ready=true.
 - Runtime `.setforge/`, work, real art, references, requests, reports and local
   configuration never enter source control. Run `scripts/publication_check.py`
   before staging/publishing. No network publication without a user instruction.

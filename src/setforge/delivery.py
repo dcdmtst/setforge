@@ -22,13 +22,43 @@ def presentation_fingerprint():
         ('showcase.py','ui_skin.py','neutral_skin.py','typography.py','rating_ui.py','defaults/ui/rating-stars.json'))).hexdigest()
 
 
+def _derivative(run,key,card,index,artifact,native,config):
+    """Export one already approved native without claiming set/order acceptance."""
+    from PIL import Image,ImageOps
+    rules=config.get('rules',{})
+    if rules.get('resize_policy','contain')!='contain':
+        raise ValueError('Only non-cropping contain export is supported.')
+    size=tuple(rules.get('output_size',[430,480]))
+    path=inside(run,f"exports/{key.split('/')[0]}/{index:02d}-{card['id']}.png")
+    path.parent.mkdir(parents=True,exist_ok=True)
+    # A temporary sibling keeps readers from seeing half a PNG.
+    with tempfile.NamedTemporaryFile(dir=path.parent,suffix='.png',delete=False) as stream:
+        temporary=Path(stream.name)
+    try:
+        with Image.open(native) as original:
+            image=original.convert('RGB')
+            ImageOps.pad(image,size,method=Image.Resampling.LANCZOS,color=image.getpixel((0,0))).save(temporary)
+        with Image.open(temporary) as check:
+            if check.format!='PNG' or check.size!=size:raise ValueError('Export format/size verification failed.')
+            check.verify()
+        os.replace(temporary,path)
+    finally:
+        temporary.unlink(missing_ok=True)
+    return {'key':key,'path':path.relative_to(run).as_posix(),'sha256':sha(path),
+            'source_sha256':artifact['sha256'],'acceptance':'accepted'}
+
+
 def result_manifest(run):
     run=Path(run).resolve();state=read(run/'state.json');brief=read(run/'inputs/brief.json')
     from .typography import for_run
     typography=for_run(run)
-    expected=brief.get('variants',3)*10;groups=[];valid=0;errors=[]
+    expected=brief.get('variants',3)*10;groups=[];valid=0;art_approved=0;deliverable=0;errors=[]
     threshold=max(93.5,state.get('art_acceptance',{}).get('threshold',93.5))
     exports={a['key']:a for a in read(run/'exports/manifest.json')} if (run/'exports/manifest.json').exists() else {}
+    config=read(run/'inputs/project.json') if (run/'inputs/project.json').exists() else {}
+    exports_changed=False
+    discarded_sets=state.get('discarded_sets',{})
+    reviewed=set(state.get('reviewed_variants',[]))
     mapping=names(run);shown=copy.deepcopy(state.get('plan') or {'variants':[]})
     for variant in shown['variants']:
         variant['title']=display_title(mapping,variant)
@@ -40,23 +70,27 @@ def result_manifest(run):
     if state.get('discarded_cards') or state.get('discarded_sets'):errors.append({'gate':'discarded_content'})
     for variant in (state.get('plan') or {}).get('variants',[]):
         cards=[]
+        title_failed=any(key=='set:'+variant['id'] or key.startswith(variant['id']+'/')
+                         for key in title_check['failed_labels'])
+        final_accepted=(not title_failed and variant['id'] not in discarded_sets and
+                        (state['status']=='complete' or variant['id'] in reviewed))
         for index,card in enumerate(variant['cards'],1):
             key=variant['id']+'/'+card['id'];artifact=state.get('accepted',{}).get(key)
             ready=bool(artifact and artifact.get('eligible') and artifact.get('quality',0)>=threshold)
             entry={'id':card['id'],'title':display_title(mapping,variant,card),'stars':card.get('stars'),
                    'golden':card.get('golden',False),'category':card['background'],
-                   'accepted':False,'quality':artifact.get('quality') if artifact else None}
+                   'accepted':False,'art_approved':False,'deliverable':False,
+                   'quality':artifact.get('quality') if artifact else None}
+            if key in state.get('discarded_cards',{}):ready=False
             if ready:
                 try:
                     if score(artifact.get('scores',{}))!=artifact['quality'] or state.get('art_stops',{}).get(key)!='accepted':
                         raise ValueError('Scored acceptance record is inconsistent.')
                     if artifact.get('stars')!=card.get('stars') or artifact.get('golden')!=card.get('golden'):
                         raise ValueError('Accepted stars/gold differ from allocation.')
-                    native=inside(run,artifact['path']);export=exports[key];sized=inside(run,export['path'])
-                    if sha(native)!=artifact['sha256'] or sha(sized)!=export['sha256']:
+                    native=inside(run,artifact['path'])
+                    if sha(native)!=artifact['sha256']:
                         raise ValueError('Artifact content hash changed.')
-                    if export['source_sha256']!=artifact['sha256'] or export.get('acceptance')!='accepted':
-                        raise ValueError('Export does not bind the accepted native.')
                     if artifact.get('observed_category')!=card['background']:
                         raise ValueError('Observed category differs from allocation.')
                     from .construction import applies, validate_card
@@ -65,14 +99,34 @@ def result_manifest(run):
                         visual_review=read(inside(run,'jobs/'+history['review_job']+'/response.json'))
                         if not validate_card(run,visual_review,artifact,key):
                             raise ValueError('Construction is not accepted; score cannot override it.')
+                    entry['art_approved']=True;art_approved+=1
+                    export=exports.get(key)
+                    if export is None:
+                        export=_derivative(run,key,card,index,artifact,native,config)
+                        exports[key]=export;exports_changed=True
+                    sized=inside(run,export['path'])
+                    if sha(sized)!=export['sha256']:raise ValueError('Artifact content hash changed.')
+                    if export['source_sha256']!=artifact['sha256'] or export.get('acceptance')!='accepted':
+                        raise ValueError('Export does not bind the accepted native.')
                     entry.update(accepted=True,native_path=f"images/{variant['id']}/{index:02d}-{card['id']}.png",
                                  path=f"cards/{variant['id']}/{index:02d}-{card['id']}.png",
                                  source_sha256=artifact['sha256'],sha256=export['sha256'],
+                                 available_path=export['path'],available_native_path=artifact['path'],
+                                 deliverable=final_accepted,
                                  _native_source=artifact['path'],_export_source=export['path'])
                     valid+=1
+                    deliverable+=int(final_accepted)
                 except (OSError,ValueError,KeyError,StopIteration) as exc:errors.append({'card':key,'error':str(exc)})
             cards.append(entry)
-        groups.append({'id':variant['id'],'title':display_title(mapping,variant),'cards':cards})
+        if len(cards)!=10 or not all(card['accepted'] for card in cards):
+            final_accepted=False
+            for entry in cards:
+                deliverable-=int(entry['deliverable']);entry['deliverable']=False
+        groups.append({'id':variant['id'],'title':display_title(mapping,variant),'cards':cards,
+                       'final_accepted':final_accepted,
+                       'art_approved_cards':sum(c['art_approved'] for c in cards),
+                       'deliverable_cards':sum(c['deliverable'] for c in cards)})
+    if exports_changed:write(run/'exports/manifest.json',list(exports.values()))
     if state['status']=='complete' and state.get('construction_policy'):
         try:
             from .construction import targets,validate_set
@@ -80,21 +134,29 @@ def result_manifest(run):
             validate_set(run,read(inside(run,'jobs/'+final['id']+'/response.json')),targets(state))
         except (OSError,ValueError,KeyError,StopIteration) as exc:
             errors.append({'gate':'final_construction','error':str(exc)})
+            deliverable=0
+            for group in groups:
+                group.update(final_accepted=False,deliverable_cards=0)
+                for entry in group['cards']:entry['deliverable']=False
     ready=(state['status']=='complete' and len(groups)==brief.get('variants',3)
            and all(len(g['cards'])==10 for g in groups) and valid==expected and not errors)
     return {'schema_version':1,'run_id':run.name,'status':state['status'],
             'typography':typography.public_profile(),
             'full_delivery_ready':ready,'requested_variants':brief.get('variants',3),
-            'expected_cards':expected,'accepted_cards':valid,'threshold':threshold,
+            'expected_cards':expected,'accepted_cards':valid,'art_approved_cards':art_approved,
+            'deliverable_cards':deliverable,'recorded_art_passes':len(state.get('accepted',{})),
+            'threshold':threshold,
             'theme':brief['theme'],'wishes':brief.get('wishes',''),'variants':groups,
             'errors':errors,'artifacts':{'report':'report.html','archive':'delivery.zip'}}
 
 
-def public_manifest(manifest):
+def public_manifest(manifest,*,bundle=False):
     value=copy.deepcopy(manifest)
     for group in value['variants']:
         for card in group['cards']:
             card.pop('_native_source',None);card.pop('_export_source',None)
+            if bundle and card['accepted']:
+                card['available_path']=card['path'];card['available_native_path']=card['native_path']
     return value
 
 
@@ -110,7 +172,8 @@ def export_bundle(run,out=None):
     if out.suffix.lower()!='.zip':raise ValueError('Delivery output must be a .zip file.')
     if out.is_relative_to(run) and out.parent!=run:raise ValueError('Write delivery beside the report or outside the run, never over production inputs/artifacts.')
     with locked(run):
-        value=result_manifest(run);public=public_manifest(value);write(run/'result-manifest.json',public)
+        value=result_manifest(run);public=public_manifest(value,bundle=True)
+        write(run/'result-manifest.json',public_manifest(value))
         if not value['full_delivery_ready']:
             raise ValueError('Full delivery is not accepted. Read result-manifest.json; no accepted ZIP was produced.')
         fingerprint=hashlib.sha256((json.dumps(public,sort_keys=True)+presentation_fingerprint()).encode()).hexdigest()

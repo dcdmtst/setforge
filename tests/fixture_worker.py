@@ -113,7 +113,25 @@ def respond(request, run):
                 no_gold=request['context']['allocation_policy'].get('exclude_golden_cards',False)
                 v['cards'][-1].update(background=4 if no_gold else 5,golden=not no_gold,main_cast_scene=True,key_character_count=2,
                                       scene='TEST two key characters in a small emotional scene.')
+        if request['context'].get('character_staging_policy'):
+            for v in result['variants']:
+                for c in v['cards']:
+                    c['character_staging']=[{'character_id': 'fixture-person-'+str(i), 'stance':'standing',
+                        'gesture':'arms_resting','action':'OFFLINE fixture only', 'camera_azimuth':'front',
+                        'camera_elevation':'eye_level'} for i in range(c.get('key_character_count',0))]
         return result
+    if request['kind']=='replacement_plan':
+        import copy
+        c=copy.deepcopy(request['context']['card']); n=len(request['context']['rejected_candidates'])+1
+        c['subject']='OFFLINE different replacement '+str(n)
+        c['scene']='OFFLINE replacement scene '+str(n)
+        c['title']='New '+str(n)
+        c['concept']['canonical_subject']='replacement-'+str(n)
+        return c
+    if request['kind']=='replacement_review':
+        import copy
+        r=copy.deepcopy(request);r['kind']='plan_review'
+        return review(r)
     if request["kind"] == "image":
         from PIL import Image, ImageDraw
         # Explicit labelled test pattern, never presented as generated artwork.

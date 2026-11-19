@@ -4,7 +4,6 @@ These helpers never generate art, accept a card, or advance production state.
 The immutable job keeps the full reference list for visual inspection/review.
 """
 
-import json
 import re
 import shutil
 import time
@@ -25,7 +24,7 @@ def job_request(run, job_id):
     return run, folder, request
 
 
-def image_call(run, request, *, max_images=None, tool='imagegen'):
+def image_call(run, request, *, max_images=None, tool='imagegen', prompt_override=None):
     """Select exact inputs before a call; mandatory identities are never dropped."""
     run = Path(run).resolve()
     if request.get('kind') != 'image':
@@ -79,20 +78,19 @@ def image_call(run, request, *, max_images=None, tool='imagegen'):
             omitted.append({**group['image'], 'reason': 'tool_limit; lower-priority original style reference'})
         for alias in group['aliases']:
             omitted.append({**alias, 'reason': 'same bytes as another input; role retained in aliases'})
-    prompt = request['prompt']
-    marker = '\n\nINPUT IMAGES IN ORDER\n'
-    if marker in prompt:
-        prefix, suffix = prompt.split(marker, 1)
-        _, feedback = suffix.split('\n\nTARGETED FEEDBACK\n', 1)
-        prompt = prefix + marker + json.dumps(chosen, ensure_ascii=False) + '\n\nTARGETED FEEDBACK\n' + feedback
+    aliases = [g for g in selected if g['aliases']]
+    from .image_prompts import build, validate_prompt
+    if prompt_override is None:
+        prompt, prompt_policy = build(run, request, chosen, aliases, tool=tool)
     else:
-        prompt += marker + json.dumps(chosen, ensure_ascii=False)
-    from .preparation import framing_guidance
-    prompt += '\n\n' + framing_guidance()
+        limit = validate_prompt(prompt_override, tool)
+        prompt = prompt_override
+        prompt_policy = {'policy': 'exact-worker-override', 'characters': len(prompt),
+                         'max_characters': limit, 'full_request_retained': True}
     return {'schema_version': 1, 'max_images': limit,
             'selection_policy': 'edit target, every canon source, card-specific originals, global originals; deduplicate bytes',
             'inspection_images': records, 'selected': chosen, 'omitted': omitted,
-            'aliases': [g for g in selected if g['aliases']],
+            'aliases': aliases, 'prompt_policy': prompt_policy,
             'prompt': prompt,
             'referenced_image_paths': [str(inside(run, i['path'])) for i in chosen],
             'request_sha256': sha(inside(run, 'jobs/' + request['job_id'] + '/request.json'))}
@@ -116,10 +114,8 @@ def start(run, job_id, worker, token, *, tool='imagegen', model='unspecified', m
         _owner(run, folder, job_id, worker, token, starting=True)
         if (folder / 'generation-record.json').exists():
             raise ValueError('An image attempt is already recorded for this job. Recover it; do not generate again.')
-        call = image_call(run, request, max_images=max_images, tool=tool)
-        if prompt_file:
-            call['prompt'] = Path(prompt_file).read_text(encoding='utf-8-sig')
-            if not call['prompt'].strip():raise ValueError('Exact tool prompt cannot be blank.')
+        exact_prompt = Path(prompt_file).read_text(encoding='utf-8-sig') if prompt_file else None
+        call = image_call(run, request, max_images=max_images, tool=tool, prompt_override=exact_prompt)
         write(folder / 'generation-inputs.json', {k: v for k, v in call.items() if k != 'prompt'})
         (folder / 'generation-prompt.txt').write_text(call['prompt'], encoding='utf-8')
         record = {'schema_version': 1, 'status': 'started', 'job_id': job_id,

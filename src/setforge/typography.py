@@ -75,7 +75,7 @@ class Lettering:
 
     def describe(self):
         if self.font is None:return 'Pillow Aileron (default)'+(' — fallback for '+self.requested if self.requested else '')
-        return self.profile['family']+' '+self.profile['style']
+        return self.profile.get('requested') or self.profile['family']+' '+self.profile['style']
 
     def public_profile(self):
         return {key:value for key,value in self.profile.items() if key!='path'}

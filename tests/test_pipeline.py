@@ -33,6 +33,7 @@ class PipelineTests(unittest.TestCase):
         self.project.mkdir()
         defaults = ROOT / "src/setforge/defaults"
         self.config = read(defaults / "project.json")
+        self.config["font"] = "default"  # Offline fixtures must not depend on locally installed commercial fonts.
         self.config["schema_version"] = 1  # Legacy immutable-run regression suite.
         self.config['rules']['exclude_main_cast_scenes'] = True  # Explicit cinema-like test profile.
         self.config["global_reference_ids"] = ["ref-001"]

@@ -35,6 +35,9 @@ class SchedulingV2Tests(unittest.TestCase):
             self.assertIsNotNone(claim)
             req=self.request(claim)
             answer=copy.deepcopy(data) if data is not None and req['kind']=='plan' else respond(req,self.run)
+            if req['kind']=='plan' and req['context'].get('character_staging_policy'):
+                for v in answer['variants']:
+                    for c in v['cards']:c.setdefault('character_staging',[])
             self.answer(claim,answer)
         self.fail('Planning did not reach image scheduling')
 

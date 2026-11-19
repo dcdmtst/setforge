@@ -168,15 +168,21 @@ def report(run, state):
         content.append(f"<p>{esc(acceptance_text(state))} "
                        "<a href='inputs/acceptance-policy.json'>Исходный снимок политики</a>; "
                        "действующая версия — в состоянии запуска и истории поправок.</p>")
-        content.append('<table><tr><th>Карточка</th><th>Решение</th><th>Итерация</th><th>Q95</th></tr>')
+        content.append('<table><tr><th>Карточка</th><th>Решение</th><th>Кандидат</th><th>Итерация</th><th>Q95</th></tr>')
         for key, history in state.get('art_history', {}).items():
             if not history:
                 continue
             r = history[-1]
             decision='Отбракована · не принята' if key in (state.get('discarded_cards') or {}) else state.get('art_stops', {}).get(key)
             content.append(f"<tr><td>{esc(key)}</td><td>{esc(decision)}</td>"
-                           f"<td>{r['iteration']}</td><td>{r['quality']:.4f}</td></tr>")
+                           f"<td>{r.get('candidate', 1)}</td><td>{r['iteration']}</td><td>{r['quality']:.4f}</td></tr>")
         content.append('</table>')
+        if state.get('card_candidates'):
+            content.append('<details><summary>История заменённых идей</summary><ul>')
+            for slot, candidates in state['card_candidates'].items():
+                for old in candidates['history']:
+                    content.append(f"<li>{esc(slot)} · кандидат {old['number']}: {esc(old['card']['title'])} — {esc(old['reason'])}</li>")
+            content.append('</ul></details>')
     for variant in (state["plan"] or {}).get("variants", []):
         title = display_title(mapping, variant)
         content.append(f"<article><h2>{esc(title)}</h2><p>{esc(variant['premise'])}</p><p>{esc(variant['difference'])}</p>")

@@ -9,7 +9,7 @@ def revise_card(pipeline, key, note):
     pipeline.check_snapshot()
     state, run = pipeline.state, pipeline.run
     if not pipeline.quality_v2:raise ValueError('Targeted construction amendment requires a v2 project; legacy v1 contracts remain unchanged.')
-    if state['status'] != 'complete' or not note.strip():
+    if state['status'] not in ('complete', 'completed_with_rejections') or not note.strip():
         raise ValueError('Targeted revision needs a completed run and the producer correction note.')
     pipeline.find(key)
     from .workqueue import WorkQueue
@@ -30,11 +30,30 @@ def revise_card(pipeline, key, note):
     # Retire the old downloadable ZIP while the amended order is incomplete.
     if (run/'delivery.zip').exists():shutil.move(str(run/'delivery.zip'), str(folder/'delivery.zip'))
     if (run/'delivery-receipt.json').exists():(run/'delivery-receipt.json').unlink()
+    # Retain the original export record/pixels, but retire only this card's
+    # binding. A subsequently approved native needs its own derivative; keeping
+    # an old binding would correctly fail delivery's source-hash guard.
+    retired_export=None
+    export_manifest=run/'exports/manifest.json'
+    if export_manifest.exists():
+        rows=read(export_manifest)
+        write(folder/'exports/manifest.json',rows)
+        previous_export=next((row for row in rows if row['key']==key),None)
+        if previous_export:
+            retired_export={'record':copy.deepcopy(previous_export)}
+            source=inside(run,previous_export['path'])
+            if source.is_file():
+                archived=folder/'exports/retired'/source.name
+                archived.parent.mkdir(parents=True,exist_ok=True)
+                shutil.copy2(source,archived)
+                retired_export.update(archived_path=archived.relative_to(run).as_posix(),sha256=sha(archived))
+        write(export_manifest,[row for row in rows if row['key']!=key])
     p = state.get('construction_policy')
     if p is None:state['construction_policy'] = policy([key])
     elif p['scope'] == 'cards' and key not in p['cards']:p['cards'].append(key)
     write(folder/'request.json', {'time': now(), 'card': key, 'note': note,
           'previous_artifact': previous, 'executor_version': __version__,
+          'retired_export':retired_export,
           'construction_policy': state['construction_policy'],
           'other_cards_preserved': sorted(k for k in state['accepted'] if k != key),
           'history_and_attempt_counts_preserved': True})
