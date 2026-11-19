@@ -4,6 +4,7 @@ import io
 import json
 import threading
 import unittest
+from unittest.mock import patch
 from urllib.request import Request,urlopen
 from urllib.error import HTTPError
 from http.client import HTTPConnection
@@ -140,7 +141,11 @@ class ProducerDeliveryTests(unittest.TestCase):
         self.assertEqual(status,200)
         self.assertIn('Свободные пожелания',data.decode())
         value={'theme':'TEST form','wishes':'  Дословно\nС персонажами  ','variants':4,'font_decision':'default'}
-        status,data=request('POST','/api/runs',json.dumps(value).encode(),url)
+        # Choosing the bundled default must not enumerate every system font.
+        # Keep real HTTP/order creation and the five-second timeout intact.
+        with patch('setforge.font_selection.installed_fonts',side_effect=AssertionError('Default orders must not scan system fonts')) as font_scan:
+            status,data=request('POST','/api/runs',json.dumps(value).encode(),url)
+        font_scan.assert_not_called()
         self.assertEqual(status,201)
         data=json.loads(data)
         brief=read(runs/data['id']/'inputs/brief.json')

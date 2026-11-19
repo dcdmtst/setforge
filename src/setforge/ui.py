@@ -18,16 +18,19 @@ from .schemas import BRIEF, validate
 from .font_selection import FontChoiceRequired
 
 
-def project_context(project):
-    from .font_selection import context as font_context
+def project_context(project,*,include_fonts=True):
     config=read(Path(project)/'project.json')
     try:
         check_project(project);ready=True;issues=[]
     except (ValueError,OSError,KeyError) as error:
         ready=False;issues=[str(error)]
-    return {'project':config.get('collection_id','collection'),'ready':ready,'issues':issues,
-            'external_agent_required':any(p.get('type')=='files' for p in config.get('providers',{}).values()),
-            'default_variants':3,'cards_per_set':10,'font':font_context(project)}
+    context={'project':config.get('collection_id','collection'),'ready':ready,'issues':issues,
+             'external_agent_required':any(p.get('type')=='files' for p in config.get('providers',{}).values()),
+             'default_variants':3,'cards_per_set':10}
+    if include_fonts:
+        from .font_selection import context as font_context
+        context['font']=font_context(project)
+    return context
 
 
 def orders(runs):
@@ -202,7 +205,10 @@ def make_server(project,runs,port=8840,*,artists=2,reviewers=2,workers=None):
                         installed_fonts(force=True)
                         return self.send_data(font_context(project,value.get('font')))
                     return self.send_data(try_install(project,value.get('font','Lithos Pro Black'),value.get('source')))
-                context=project_context(project)
+                # Readiness does not need the UI's system-font catalogue.
+                # create_order validates the requested font separately; an
+                # explicit default must not wait for a full Windows font scan.
+                context=project_context(project,include_fonts=False)
                 if not context['ready']:raise ValueError('Setup incomplete: '+'; '.join(context['issues']))
                 pipeline=create_order(project,runs,value,artists=artists,reviewers=reviewers,workers=workers)
                 threading.Thread(target=advance_order,args=(pipeline.run,),daemon=True).start()
