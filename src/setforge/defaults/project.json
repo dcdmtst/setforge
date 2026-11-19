@@ -1,6 +1,7 @@
 {
   "schema_version": 2,
   "collection_id": "collection",
+  "font": "Lithos Pro Black",
   "rules": {
     "cards_per_variant": 10,
     "background_categories": [1, 2, 3, 4],

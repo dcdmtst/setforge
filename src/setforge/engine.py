@@ -51,7 +51,13 @@ class Pipeline:
         self.style = (self.run / "inputs/style.md").read_text(encoding="utf-8")
 
     @classmethod
-    def create(cls, project, brief, run, artists=None, reviewers=2, workers=None):
+    def create(cls, project, brief, run, artists=None, reviewers=2, workers=None, typography=None):
+        brief=dict(brief)
+        if 'font' in brief or 'font_decision' in brief:
+            from .font_selection import available_or_default,selection
+            font=brief.pop('font',None);decision=brief.pop('font_decision',None)
+            if typography is None:
+                typography=selection(project,font,decision) if decision else available_or_default(project,font)
         brief = {"wishes": "", "required": [], "forbidden": [], "variants": 3, **brief}
         validate(brief, BRIEF)
         if not brief['theme'].strip():raise ValueError('Theme is required.')
@@ -60,7 +66,7 @@ class Pipeline:
             raise ValueError("Run already exists. Resume it or choose a new folder.")
         run.mkdir(parents=True)
         try:
-            config, canon = snapshot(project, run)
+            config, canon = snapshot(project, run, typography=typography)
             write(run / "inputs/brief.json", brief)
             write(run / "inputs/acceptance-policy.json", art_policy())
             allocation = allocation_policy(config, brief)

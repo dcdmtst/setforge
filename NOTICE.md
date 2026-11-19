@@ -19,7 +19,7 @@ font into a project, producer ZIP, wheel or source repository. Users need an
 appropriate license for their own desktop, server or application use. No font
 license is granted by this repository, and no raster alphabet is redistributed.
 Unconfigured/historical orders retain Pillow's bundled Aileron through Pillow's
-API; a configured missing font never silently falls back. Dependencies retain
+API; a missing configured font uses a reported Aileron fallback and fresh title-fit QA. Dependencies retain
 their own licenses, supplied by their packages:
 Pillow (HPND and bundled-component notices), jsonschema (MIT), setuptools (MIT),
 and optionally the OpenAI Python SDK (Apache-2.0). Consult the installed package

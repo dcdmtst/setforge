@@ -115,7 +115,7 @@ class ProducerDeliveryTests(unittest.TestCase):
         target=self.root/'brief.json'
         with contextlib.redirect_stdout(io.StringIO()):
             self.assertEqual(main(['brief','--theme','TEST','--wishes','Свободно\nДословно','--out',str(target)]),0)
-        self.assertEqual(read(target),{'theme':'TEST','wishes':'Свободно\nДословно','variants':3})
+        self.assertEqual(read(target),{'theme':'TEST','wishes':'Свободно\nДословно','variants':3,'font':'Lithos Pro Black'})
         with contextlib.redirect_stdout(io.StringIO()),contextlib.redirect_stderr(io.StringIO()):
             self.assertEqual(main(['run','--project',str(self.project),'--theme','TEST','--wishes','Точный текст',
                                   '--variants','4','--run',str(self.run)]),3)
@@ -139,7 +139,7 @@ class ProducerDeliveryTests(unittest.TestCase):
         status,data=request('GET','/')
         self.assertEqual(status,200)
         self.assertIn('Свободные пожелания',data.decode())
-        value={'theme':'TEST form','wishes':'  Дословно\nС персонажами  ','variants':4}
+        value={'theme':'TEST form','wishes':'  Дословно\nС персонажами  ','variants':4,'font_decision':'default'}
         status,data=request('POST','/api/runs',json.dumps(value).encode(),url)
         self.assertEqual(status,201)
         data=json.loads(data)

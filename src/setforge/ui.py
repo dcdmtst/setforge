@@ -15,9 +15,11 @@ from .io import read, write, locked, sha
 from .project import check_project
 from .report import report
 from .schemas import BRIEF, validate
+from .font_selection import FontChoiceRequired
 
 
 def project_context(project):
+    from .font_selection import context as font_context
     config=read(Path(project)/'project.json')
     try:
         check_project(project);ready=True;issues=[]
@@ -25,7 +27,7 @@ def project_context(project):
         ready=False;issues=[str(error)]
     return {'project':config.get('collection_id','collection'),'ready':ready,'issues':issues,
             'external_agent_required':any(p.get('type')=='files' for p in config.get('providers',{}).values()),
-            'default_variants':3,'cards_per_set':10}
+            'default_variants':3,'cards_per_set':10,'font':font_context(project)}
 
 
 def orders(runs):
@@ -45,15 +47,17 @@ def orders(runs):
 
 
 def create_order(project, runs, value, *, artists=2,reviewers=2,workers=None):
-    if not isinstance(value, dict) or set(value)-{'theme','wishes','variants'}:
+    if not isinstance(value, dict) or set(value)-{'theme','wishes','variants','font','font_decision'}:
         raise ValueError('Expected theme, free-form wishes and variant count.')
     brief={'theme':value.get('theme',''),'wishes':value.get('wishes',''),
            'variants':value.get('variants',3),'production_mode':'full'}
     validate(brief,BRIEF)
     if not brief['theme'].strip():raise ValueError('Укажите тему набора.')
+    from .font_selection import selection
+    typography=selection(project,value.get('font'),value.get('font_decision'))
     runs=Path(runs).resolve();runs.mkdir(parents=True,exist_ok=True)
     name='run-'+datetime.now(timezone.utc).strftime('%Y%m%d-%H%M%S')+'-'+uuid.uuid4().hex[:8]
-    pipeline=Pipeline.create(project,brief,runs/name,artists=artists,reviewers=reviewers,workers=workers)
+    pipeline=Pipeline.create(project,brief,runs/name,artists=artists,reviewers=reviewers,workers=workers,typography=typography)
     write(pipeline.run/'producer-brief.json',brief)
     report(pipeline.run,pipeline.state)
     return pipeline
@@ -165,17 +169,28 @@ def make_server(project,runs,port=8840,*,artists=2,reviewers=2,workers=None):
                     except OSError:pass
                     finally:self.connection.settimeout(previous_timeout)
                 return self.send_data({'error':'Only this local panel may submit an order.'},403)
-            if urlsplit(self.path).path!='/api/runs':return self.send_data({'error':'Not found'},404)
+            endpoint=urlsplit(self.path).path
+            if endpoint not in ('/api/runs','/api/fonts/check','/api/fonts/install'):return self.send_data({'error':'Not found'},404)
             try:
                 size=int(self.headers.get('Content-Length','0'))
                 if not 0<size<=262144:raise ValueError('Размер брифа превышает допустимый предел.')
                 value=json.loads(self.rfile.read(size))
+                from .font_selection import context as font_context,try_install
+                if endpoint.startswith('/api/fonts/'):
+                    if not isinstance(value,dict) or set(value)-{'font','source'}:raise ValueError('Expected font and optional local source.')
+                    if endpoint.endswith('/check'):
+                        from .font_selection import installed_fonts
+                        installed_fonts(force=True)
+                        return self.send_data(font_context(project,value.get('font')))
+                    return self.send_data(try_install(project,value.get('font','Lithos Pro Black'),value.get('source')))
                 context=project_context(project)
                 if not context['ready']:raise ValueError('Setup incomplete: '+'; '.join(context['issues']))
                 pipeline=create_order(project,runs,value,artists=artists,reviewers=reviewers,workers=workers)
                 threading.Thread(target=advance_order,args=(pipeline.run,),daemon=True).start()
                 self.send_data({'id':pipeline.run.name,'report':f'/runs/{pipeline.run.name}/report.html'},201)
-            except (ValueError,OSError,KeyError) as error:
+            except FontChoiceRequired as error:
+                self.send_data(error.details,409)
+            except (ValueError,OSError,KeyError,TypeError) as error:
                 self.send_data({'error':str(error)},400)
     return ThreadingHTTPServer(('127.0.0.1',port),Handler)
 

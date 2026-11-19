@@ -33,6 +33,9 @@ def init_project(project, materials=None):
 def check_project(project):
     project = Path(project).resolve()
     cfg = read(project / "project.json")
+    if 'font' in cfg:
+        from .font_selection import clean_name
+        clean_name(cfg['font'])
     from .typography import Lettering, project_profile
     Lettering(project_profile(project))
     contracts(cfg.get("schema_version", 1))
@@ -97,7 +100,7 @@ def check_project(project):
     return cfg, refs
 
 
-def snapshot(project, run):
+def snapshot(project, run, typography=None):
     cfg, refs = check_project(project)
     project, run = Path(project), Path(run)
     for ref in refs:
@@ -127,8 +130,8 @@ def snapshot(project, run):
     write(run / "inputs" / "project.json", cfg)
     write(run / "inputs" / "references.json", refs)
     write(run / "inputs" / "canon.json", canon)
-    from .typography import project_profile
-    write(run/'inputs/typography.json',project_profile(project))
+    from .font_selection import available_or_default
+    write(run/'inputs/typography.json',typography if typography is not None else available_or_default(project))
     shutil.copy2(project / "style.md", run / "inputs" / "style.md")
     if (project / "research").exists():
         shutil.copytree(project / "research", run / "inputs" / "research")

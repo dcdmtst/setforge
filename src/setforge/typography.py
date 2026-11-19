@@ -18,10 +18,10 @@ _REFERENCE=string.ascii_letters+string.digits
 
 def font_profile(path):
     path=Path(path).expanduser().resolve()
-    if path.suffix.lower() not in ('.otf','.ttf'):
-        raise ValueError('Supply a locally licensed .otf or .ttf font file.')
+    if path.stat().st_size>20_000_000:raise ValueError('Font exceeds 20 MB.')
     data=path.read_bytes()
-    if len(data)>20_000_000:raise ValueError('Font exceeds 20 MB.')
+    if data[:4] not in (b'OTTO',b'\x00\x01\x00\x00',b'true'):
+        raise ValueError('Supply a locally licensed OpenType or TrueType font file.')
     font=ImageFont.truetype(BytesIO(data),64)
     family,style=font.getname()
     return {'version':1,'kind':'local-opentype','renderer':'pillow-opentype-v1',
@@ -45,29 +45,36 @@ def run_profile(run,*,frozen=False):
 class Lettering:
     def __init__(self,profile=None):
         self.profile=dict(profile or NEUTRAL)
+        self.requested=self.profile.get('requested')
+        self.fallback_reason=self.profile.get('fallback_reason')
         if self.profile.get('version')!=1:raise ValueError('Unsupported typography version.')
         self.font=None
         if self.profile.get('kind')=='neutral':
-            if self.profile!=NEUTRAL:raise ValueError('Invalid neutral typography profile.')
+            if {k:v for k,v in self.profile.items() if k not in ('requested','fallback_reason')}!=NEUTRAL:raise ValueError('Invalid neutral typography profile.')
             return
         if self.profile.get('kind')!='local-opentype' or self.profile.get('renderer')!='pillow-opentype-v1':
             raise ValueError('Unsupported typography renderer.')
         # Other machines may map the identical licensed font to a local path.
         # Environment variables never change the required content hash/family.
         path=Path(os.environ.get('SETFORGE_FONT_PATH') or self.profile['path'])
-        try:data=path.read_bytes()
-        except OSError as exc:
-            raise ValueError('Configured font is unavailable. Supply the licensed font locally or set SETFORGE_FONT_PATH to the identical file; no fallback is permitted.') from exc
-        if hashlib.sha256(data).hexdigest()!=self.profile.get('sha256'):
-            raise ValueError('Configured font content changed; do not silently substitute typography.')
-        self.font=ImageFont.truetype(BytesIO(data),64)
-        if self.font.getname()!=(self.profile.get('family'),self.profile.get('style')):
-            raise ValueError('Configured font family/style differ from its saved profile.')
+        try:
+            data=path.read_bytes()
+            if hashlib.sha256(data).hexdigest()!=self.profile.get('sha256'):
+                raise ValueError('Configured font content changed.')
+            self.font=ImageFont.truetype(BytesIO(data),64)
+            if self.font.getname()!=(self.profile.get('family'),self.profile.get('style')):
+                raise ValueError('Configured font family/style differ from its saved profile.')
+        except (OSError,ValueError) as exc:
+            self.font=None
+            self.requested=self.requested or self.profile.get('family','')+' '+self.profile.get('style','')
+            self.fallback_reason='Configured font unavailable or changed; using default Aileron.'
+            self.profile={**NEUTRAL,'requested':self.requested,'fallback_reason':self.fallback_reason}
+            return
         self.box=self.font.getbbox(_REFERENCE,stroke_width=2)
         self.notdef=bytes(self.font.getmask('\uffff'))
 
     def describe(self):
-        if self.font is None:return 'Pillow Aileron (neutral)'
+        if self.font is None:return 'Pillow Aileron (default)'+(' — fallback for '+self.requested if self.requested else '')
         return self.profile['family']+' '+self.profile['style']
 
     def public_profile(self):
@@ -116,18 +123,30 @@ def for_run(run,*,frozen=False):
     return Lettering(run_profile(run,frozen=frozen))
 
 
-def configure(target,font=None,*,run=False,neutral=False):
+def configure(target,font=None,*,run=False,neutral=False,family=None):
     target=Path(target).resolve()
     if not (target/('state.json' if run else 'project.json')).is_file():
         raise ValueError('Choose an existing '+('run' if run else 'project')+'.')
-    if font is not None and neutral:raise ValueError('Choose a font or neutral typography, not both.')
+    if sum((font is not None,neutral,family is not None))>1:raise ValueError('Choose a font file, family or default typography.')
     destination=target/('presentation-typography.json' if run else 'typography.json')
     with locked(target):
-        if font is not None or neutral:
+        if family is not None and not run:
+            from .font_selection import clean_name,available_or_default
+            cfg=read(target/'project.json');cfg['font']=clean_name(family)
+            write(target/'project.json',cfg)
+            lettering=Lettering(available_or_default(target,family))
+        elif font is not None or neutral:
             profile=font_profile(font) if font is not None else dict(NEUTRAL)
             lettering=Lettering(profile);lettering.compose_label('Font Check',18)
             write(destination,profile)
-        else:lettering=for_run(target) if run else Lettering(project_profile(target))
+            if not run:
+                cfg=read(target/'project.json')
+                cfg['font']='default' if neutral else profile['family']+' '+profile['style']
+                write(target/'project.json',cfg)
+        elif family is not None:raise ValueError('Use --family for a project; runs require a font file or --neutral.')
+        else:
+            from .font_selection import available_or_default
+            lettering=for_run(target) if run else Lettering(available_or_default(target))
     return {'typography':lettering.public_profile(),'font_software_copied':False,
             'scope':'presentation of this run only' if run else 'future orders in this project',
             'title_preflight_required':True}

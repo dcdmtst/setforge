@@ -20,6 +20,8 @@ BRIEF = obj({
 })
 BRIEF["required"] = ["theme"]
 BRIEF['properties'].update({
+    'font': {'type':'string','minLength':1,'maxLength':160},
+    'font_decision': {'enum':['default']},
     'star_counts': {'type': 'array', 'minItems': 5, 'maxItems': 5,
                     'items': {'type': 'integer', 'minimum': 0, 'maximum': 10}},
     'characters': {'enum': ['auto', 'none', 'optional', 'required']},

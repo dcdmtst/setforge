@@ -19,6 +19,11 @@ explicit owner instruction. See docs/contributing.md.
 - Before art, review concepts for distinctness and interest, assign all four
   categories to each set, stars, gold and cast, and pass English title pixel-fit
   QA. Characters, gold and stars are separate decisions. No invented drop rates.
+- Choose the requested font before title QA (default Lithos Pro Black). If absent,
+  ask install or default Aileron; docs/typography.md has OS-specific instructions
+  and explicit auto-install. CI may use --missing-font default. Persist the actual
+  font per run; a missing saved font falls back with a notice and fresh fit QA.
+  Font software stays outside this repository and producer ZIPs.
 - Preserve intentional recurring entities through explicit scoped canon.
   Qualifying a character does not accept its source card or its defective props.
 - Use the persisted CLI jobs, leases and exact request contracts. Only the

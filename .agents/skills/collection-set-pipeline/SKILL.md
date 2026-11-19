@@ -76,8 +76,14 @@ categories 1–4 independent of stars. Category 5 is an additional golden scene 
 one/two key characters, not a substitute for 1–4. Ordinary characters can appear
 without gold. Character and no-gold policies are independent. Read docs/allocation.md.
 
-English set/card titles only. Measure using the actual renderer at fixed size:
-card 18 px/160 px, set 31 px/850 px. Never shrink, crop, ellipsize or widen to make a
+English set/card titles only.
+Choose the project/order font before art (default Lithos Pro Black). If missing,
+ask whether to install or use default Aileron; follow docs/typography.md for the
+OS-specific manual/automatic flow. Never purchase a font or call an attempted
+Adobe launch a completed installation. For CI use --missing-font default; record
+the effective fallback. A missing saved font falls back and title fit is rechecked.
+Measure using the actual renderer at fixed size: card 18 px/160 px, set 31 px/850 px.
+Never shrink, crop, ellipsize or widen to make a
 particular title pass. Rewrite naturally; if impossible replace the concept before
 art. Localization and loc QA are out of scope. Read docs/naming-guide.md.
 

@@ -1,20 +1,20 @@
 {
   "engine_baseline": "002 /0.9.0",
-  "packaging_version": "0.9.4",
+  "packaging_version": "0.9.5",
   "unchanged_core_modules": {
     "acceptance.py": "7763c5722ce051bfa117ee276a05f29eac404ace83a66140d18e52d4ce7b5fd8",
     "allocation.py": "6900ac20663846001d5b1aa1ccbe3900baaec54fcf569664fcd60eb414917a07",
     "parallel.py": "e59bb53b979318a62648d90a28bff2bff336a5c2a61c16cb9321179e264db152",
     "workqueue.py": "bab7e7a9381e699968a837d10da66ff2debfa25a9502e1b3c01ca1529bc0cd68",
     "quality.py": "1506c39c4c9be0b4e1c4c28935266b01e7d181c57ec160ee314291bd5597dfb5",
-    "schemas.py": "56cc7ac8526c2c2ca750c5448c16ea7a245fbb78f33f3914de7ff4ac549f7cf7",
     "workers.py": "1b08e1efed1062b1dfd2d93fd4eee8e87b9d7d4d62a6ac2e0f5e6020b6e82da2",
     "refine.py": "d859371675aa549be997bb54f185be6f40625f3defffc3ceb9ac1498abce9e23"
   },
   "authorized_core_changes": {
+    "schemas.py": {"baseline_sha256":"56cc7ac8526c2c2ca750c5448c16ea7a245fbb78f33f3914de7ff4ac549f7cf7", "reason":"Producer-requested optional font and font_decision brief inputs; production and acceptance contracts unchanged"},
     "engine.py": {"baseline_sha256": "fd6ff4b285de93c8d29e0bed01d438c0a6bea7bf897d9661cd14116561ce3176", "reason": "Producer-requested hard construction review, immutable policy snapshot and exact-pixel card/final gates; use the pinned local font for title preflight; numeric policy unchanged"},
     "preparation.py": {"baseline_sha256": "830c5481ba8ebbf817db0d98d679270a959c035f20570f01049121831f74f476", "reason": "Apply the same construction gate and pinned-font title preflight to external responses"},
     "nameplate.py": {"baseline_sha256": "86f8c4d3955ca230598b8829c96994dd517d12f59cfcd4a81c45eeab55ba8b90", "reason": "User-requested missing-space corrections in the explanatory docstring only; executable nameplate logic unchanged"}
   },
-  "scope": "002 numerical policy, scheduler and core modules above remain unchanged; 0.9.3 adds producer-authorized physical construction acceptance and single-card post-delivery correction with preserved history; 0.9.4 adds local licensed font configuration shared by title preflight and delivery without distributing font software"
+  "scope": "002 numerical policy, scheduler and core modules above remain unchanged; 0.9.3 adds physical construction acceptance and single-card correction; 0.9.4 adds licensed local typography; 0.9.5 adds producer-requested project/order font selection, system discovery, explicit installation flow and reported default fallback; effective typography is pinned before art without distributing font software"
 }

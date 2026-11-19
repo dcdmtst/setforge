@@ -55,6 +55,7 @@ def parser():
     init = sub.add_parser("init", help="Create a project and import reference materials")
     init.add_argument("--project", type=Path, required=True)
     init.add_argument("--style-pack", "--materials", dest="materials", type=Path)
+    init.add_argument('--font',default='Lithos Pro Black',help='Preferred installed font name; default Lithos Pro Black')
     style = sub.add_parser('import-style', help='Import local style references for future runs')
     style.add_argument('--project', type=Path, required=True)
     style.add_argument('--style-pack', type=Path, required=True)
@@ -65,6 +66,12 @@ def parser():
     font_choice=lettering.add_mutually_exclusive_group()
     font_choice.add_argument('--font',type=Path)
     font_choice.add_argument('--neutral',action='store_true')
+    font_choice.add_argument('--family',help='Preferred system font name, including default')
+    font_install=sub.add_parser('font-install',help='OS-specific font instructions or an explicit automatic attempt')
+    font_install.add_argument('--project',type=Path,required=True)
+    font_install.add_argument('--font',default='Lithos Pro Black')
+    font_install.add_argument('--source',type=Path,help='Locally licensed font file to install for this OS user')
+    font_install.add_argument('--automatic',action='store_true')
     for name in ('generators', 'probe-generators'):
         generator = sub.add_parser(name, help='Inspect capabilities or prepare an optional agent-executed probe')
         generator.add_argument('--project', type=Path, required=True)
@@ -87,6 +94,8 @@ def parser():
     start.add_argument('--wishes', help='Producer free-form wishes, preserved verbatim')
     start.add_argument('--variants', type=int, choices=[3,4,5])
     start.add_argument('--mode', choices=['full','pilot'], help='Full delivery by default; pilot must be explicit')
+    start.add_argument('--font',help='Installed font family/style; overrides brief and project')
+    start.add_argument('--missing-font',choices=['ask','default','install'],help='TTY: ask; CI: default. install outputs OS help without creating a run')
     start.add_argument('--artists', type=positive_int, default=2, help='Parallel image-worker capacity; default two, no fixed upper ceiling')
     start.add_argument('--reviewers',type=positive_int,default=2)
     start.add_argument('--workers',type=positive_int,help='Total physical executor capacity; default artists+1')
@@ -96,6 +105,7 @@ def parser():
     brief.add_argument('--wishes', default='')
     brief.add_argument('--variants', type=int, choices=[3,4,5], default=3)
     brief.add_argument('--out', type=Path, required=True)
+    brief.add_argument('--font',default='Lithos Pro Black')
     ui = sub.add_parser('ui', help='Open a local producer form and results dashboard')
     ui.add_argument('--project', type=Path, required=True)
     ui.add_argument('--runs', type=Path)
@@ -241,8 +251,9 @@ def parser():
 
 def doctor(project):
     config, refs = check_project(project)
-    from .typography import Lettering, project_profile
-    lettering=Lettering(project_profile(project))
+    from .typography import Lettering
+    from .font_selection import available_or_default,context as font_context
+    lettering=Lettering(available_or_default(project))
     checks = []
     for role, provider in config["providers"].items():
         kind = provider["type"]
@@ -271,7 +282,7 @@ def doctor(project):
                        "external_worker_required": kind == "files", "issues": errors})
     return {"ready": all(c["ready"] for c in checks), "reference_count": len(refs),
             "requires_external_workers": any(c["external_worker_required"] for c in checks),
-            "providers": checks,"typography":lettering.public_profile()}
+            "providers": checks,"typography":lettering.public_profile(),'font':font_context(project)}
 
 
 def status(pipeline):
@@ -420,7 +431,10 @@ def main(argv=None):
     try:
         if args.command=='font-configure':
             from .typography import configure
-            output(configure(args.run or args.project,args.font,run=bool(args.run),neutral=args.neutral));return 0
+            output(configure(args.run or args.project,args.font,run=bool(args.run),neutral=args.neutral,family=args.family));return 0
+        if args.command=='font-install':
+            from .font_selection import try_install,installation_help
+            output(try_install(args.project,args.font,args.source) if args.automatic else installation_help(args.font));return 0
         if args.command == 'import-style':
             from .stylepack import configure
             output(configure(args.project,args.style_pack));return 0
@@ -494,6 +508,8 @@ def main(argv=None):
             value={'theme':args.theme,'wishes':args.wishes,'variants':args.variants}
             validate(value,BRIEF)
             if not value['theme'].strip():raise ValueError('Theme is required.')
+            from .font_selection import clean_name
+            value['font']=clean_name(args.font)
             if args.out.exists():raise ValueError('Brief already exists; choose a new filename.')
             write(args.out,value)
             output({'brief':str(args.out.resolve()),**value})
@@ -511,7 +527,7 @@ def main(argv=None):
         if args.command=='nameplate-check':
             import copy
             from .nameplate import preflight,DEFAULT_POLICY
-            from .typography import for_run, Lettering, project_profile
+            from .typography import for_run, Lettering
             from .naming import names,display_title
             policy=dict(DEFAULT_POLICY)
             if args.run:
@@ -526,7 +542,8 @@ def main(argv=None):
                 if notes.exists():policy['producer_flagged_labels']=read(notes).get('producer_flagged_labels',[])
             else:
                 plan=read(args.plan)
-                lettering=Lettering(project_profile(args.project)) if args.project else Lettering()
+                from .font_selection import available_or_default
+                lettering=Lettering(available_or_default(args.project)) if args.project else Lettering()
             result=preflight(plan,policy,lettering.measure_label)
             result['typography']=lettering.public_profile()
             if args.out:write(args.out,result)
@@ -538,6 +555,7 @@ def main(argv=None):
             return 3 if result.get('status') == 'stopped_unaccepted' else 0
         if args.command == "init":
             init_project(args.project, args.materials)
+            cfg=read(args.project/'project.json');cfg['font']=args.font;write(args.project/'project.json',cfg)
             output({"project": str(args.project.resolve()), "status": "initialized"})
             return 0
         if args.command == "doctor":
@@ -563,10 +581,26 @@ def main(argv=None):
             return 0
         if args.command == "run":
             value = read(args.brief) if args.brief else {'theme':args.theme}
+            from .font_selection import selection,FontChoiceRequired,installation_help
+            font=args.font or value.pop('font',None)
+            value.pop('font',None)
+            decision=value.pop('font_decision',None)
+            try:typography=selection(args.project,font,decision)
+            except FontChoiceRequired as missing:
+                action=args.missing_font or ('ask' if sys.stdin.isatty() else 'default')
+                if action=='ask' and sys.stdin.isatty():
+                    print(str(missing)+'\n1 — установить; 2 — использовать дефолтный Aileron:',file=sys.stderr)
+                    try:answer=input().strip()
+                    except EOFError:answer='default'
+                    action='default' if answer in ('2','default') else 'install'
+                if action!='default':
+                    output({**missing.details,'status':'waiting_for_font_choice','generation_started':False});return 4
+                typography=selection(args.project,font,'default')
+                print('Requested font unavailable; using default Aileron for this order.',file=sys.stderr)
             if args.wishes is not None:value['wishes']=args.wishes
             if args.variants is not None:value['variants']=args.variants
             if args.mode is not None:value['production_mode']=args.mode
-            pipeline = Pipeline.create(args.project, value, args.run, artists=args.artists,reviewers=args.reviewers,workers=args.workers)
+            pipeline = Pipeline.create(args.project, value, args.run, artists=args.artists,reviewers=args.reviewers,workers=args.workers,typography=typography)
         else:
             from .parallel import load
             pipeline = load(args.run)

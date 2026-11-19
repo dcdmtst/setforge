@@ -60,19 +60,24 @@ class TypographyTests(unittest.TestCase):
         result=json.loads(output.getvalue());card=result['labels'][1]
         self.assertEqual(code,2);self.assertGreater(card['measured_width'],160)
         self.assertEqual(card['measured_width'],lettering.compose_label('W'*40,18).width)
-        self.assertEqual(result['typography'],lettering.public_profile())
+        self.assertEqual({k:v for k,v in result['typography'].items() if k!='requested'},lettering.public_profile())
         self.assertNotEqual(lettering.compose_label('Dice').tobytes(),lettering.compose_label('DICE').tobytes())
         self.assertEqual(lettering.compose_label('H').getbbox()[3]-lettering.compose_label('H').getbbox()[1],
                          lettering.compose_label('HH').getbbox()[3]-lettering.compose_label('HH').getbbox()[1])
 
-    def test_missing_or_changed_font_never_silently_falls_back(self):
+    def test_missing_or_changed_font_uses_reported_default_and_rechecks_fit(self):
         path=self.font_file();configure(self.project,path);profile=project_profile(self.project)
         relocated=self.root/'other.ttf';relocated.write_bytes(path.read_bytes());path.unlink()
-        with self.assertRaisesRegex(ValueError,'unavailable'):Lettering(profile)
+        fallback=Lettering(profile)
+        self.assertIsNone(fallback.font)
+        self.assertIn('fallback',fallback.describe())
+        self.assertIn('fallback_reason',fallback.public_profile())
+        self.assertNotIn(str(path),json.dumps(fallback.public_profile()))
+        self.assertGreater(fallback.measure_label('W'*40)['width'],160)
         with patch.dict(os.environ,{'SETFORGE_FONT_PATH':str(relocated)}):
             self.assertEqual(Lettering(profile).public_profile()['sha256'],profile['sha256'])
             relocated.write_bytes(b'changed')
-            with self.assertRaisesRegex(ValueError,'changed'):Lettering(profile)
+            self.assertIsNone(Lettering(profile).font)
 
     def test_existing_run_override_is_presentation_only_and_zip_embeds_no_font(self):
         run=self.completed_fixture();state=(run/'state.json').read_bytes()

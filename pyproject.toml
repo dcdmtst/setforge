@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "setforge-pipeline"
-version = "0.9.4"
+version = "0.9.5"
 description = "Portable, resumable collection-card production pipeline"
 readme = "README.md"
 license = {file = "LICENSE"}
