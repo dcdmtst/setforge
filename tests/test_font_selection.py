@@ -101,6 +101,7 @@ class FontSelectionTests(unittest.TestCase):
             self.assertFalse(list(runs.glob('run-*')))
             status,data=request('/api/fonts/check',{'font':'Missing Test Font'})
             self.assertEqual(status,200);self.assertFalse(data['available']);self.assertIn('os',data['instructions'])
+            self.assertFalse(data['pending'])
             with patch.object(fonts,'try_install',return_value={'status':'manual_step_required'}) as installer:
                 status,_=request('/api/fonts/install',{'font':fonts.DEFAULT_FONT},'https://unrelated.example')
                 self.assertEqual(status,403);installer.assert_not_called()

@@ -162,9 +162,16 @@ def available_or_default(project,name=None):
     except FontChoiceRequired:return selection(project,name,'default')
 
 
-def context(project,name=None):
+def context(project,name=None,*,discover=True):
+    if not discover:
+        # Loading the producer page must not wait for OS-wide font discovery.
+        # Unknown is distinct from missing; the explicit check resolves it.
+        name=requested_font(project,name)
+        return {'requested':name,'available':None,'pending':True,'effective':None,
+                'options':sorted({DEFAULT_FONT,'default',name}),
+                'instructions':installation_help(name)}
     name=requested_font(project,name);profile=find_profile(project,name)
-    return {'requested':name,'available':profile is not None,
+    return {'requested':name,'available':profile is not None,'pending':False,
             'effective':Lettering(profile).describe() if profile is not None else 'Pillow Aileron (default)',
             'options':sorted(set([DEFAULT_FONT,'default']+[f['name'] for f in installed_fonts()])),
             'instructions':installation_help(name)}

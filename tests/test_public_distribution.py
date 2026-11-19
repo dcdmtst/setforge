@@ -68,11 +68,18 @@ class DistributionTests(unittest.TestCase):
             connection.request(method,path,body,headers or {});response=connection.getresponse()
             result=(response.status,response.read());connection.close();return result
         status,body=request('GET','/');self.assertEqual(status,200);self.assertIn('Свободные пожелания',body.decode())
-        status,body=request('GET','/api/context');self.assertFalse(json.loads(body)['ready'])
+        # The setup page must remain usable while system fonts are still unknown.
+        with patch('setforge.font_selection.installed_fonts',side_effect=AssertionError('Page setup must not scan fonts')) as scan:
+            status,body=request('GET','/api/context')
+        scan.assert_not_called()
+        context=json.loads(body);self.assertFalse(context['ready'])
+        self.assertTrue(context['font']['pending']);self.assertIsNone(context['font']['available'])
         status,_=request('POST','/api/runs',json.dumps({'theme':'TEST'}));self.assertEqual(status,400)
         status,_=request('GET','/',headers={'Host':'outside.invalid'});self.assertEqual(status,403)
         configure(self.project,self.pack())
-        status,body=request('GET','/api/context');self.assertTrue(json.loads(body)['ready'])
+        with patch('setforge.font_selection.installed_fonts',side_effect=AssertionError('Page setup must not scan fonts')) as scan:
+            status,body=request('GET','/api/context')
+        scan.assert_not_called();self.assertTrue(json.loads(body)['ready'])
         status,_=request('GET','/runs/%2e%2e/project/project.json');self.assertEqual(status,404)
         run=self.completed_fixture()
         status,body=request('GET','/api/runs');self.assertIn('download',json.loads(body)[0])

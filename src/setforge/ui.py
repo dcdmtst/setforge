@@ -29,7 +29,7 @@ def project_context(project,*,include_fonts=True):
              'default_variants':3,'cards_per_set':10}
     if include_fonts:
         from .font_selection import context as font_context
-        context['font']=font_context(project)
+        context['font']=font_context(project,discover=False)
     return context
 
 
