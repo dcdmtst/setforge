@@ -17,7 +17,7 @@ class RevisionExportTests(unittest.TestCase):
     setUp=distribution.DistributionTests.setUp
     completed_fixture=distribution.DistributionTests.completed_fixture
 
-    def exercise_revision(self,status):
+    def exercise_revision(self,status,*,noncanonical_run=False):
         run=self.completed_fixture();state=read(run/'state.json');key='v2/c1'
         if status=='completed_with_rejections':
             state['accepted'].pop('v1/c10')
@@ -31,7 +31,10 @@ class RevisionExportTests(unittest.TestCase):
         retired=next(row for row in original if row['key']==key)
         retired_bytes=(run/retired['path']).read_bytes()
         others={row['key']:sha(run/row['path']) for row in original if row['key']!=key}
-        pipe=SimpleNamespace(run=run,state=state,quality_v2=True,
+        # Exercise a real filesystem alias on every OS, including machines
+        # whose temporary directory does not use a Windows 8.3 short name.
+        pipeline_run=run/'..'/run.name if noncanonical_run else run
+        pipe=SimpleNamespace(run=pipeline_run,state=state,quality_v2=True,
                              check_snapshot=lambda:None,find=lambda target:(None,{}),
                              save=lambda:write(run/'state.json',state))
         result=revise_card(pipe,key,'TEST explicit correction')
@@ -71,6 +74,9 @@ class RevisionExportTests(unittest.TestCase):
 
     def test_partially_successful_order_rebuilds_only_corrected_derivative(self):
         self.exercise_revision('completed_with_rejections')
+
+    def test_revision_accepts_a_noncanonical_run_path(self):
+        self.exercise_revision('complete',noncanonical_run=True)
 
 
 if __name__=='__main__':unittest.main()

@@ -185,7 +185,9 @@ class QueueDurabilityTests(unittest.TestCase):
         state = self.run / 'state.json'
         state.write_text('unchanged fixture', encoding='utf-8')
         destination = self.run.parent / 'snapshot' / 'queue.sqlite3'
-        self.assertEqual(self.queue.backup(destination), destination)
+        # backup() intentionally returns the canonical path; Windows TEMP may
+        # spell the same directory with a short name such as RUNNER~1.
+        self.assertEqual(self.queue.backup(destination), destination.resolve())
         with closing(sqlite3.connect(destination)) as db:
             self.assertEqual(db.execute('PRAGMA integrity_check').fetchone()[0], 'ok')
             self.assertEqual(db.execute('SELECT status FROM jobs WHERE id=?', (job,)).fetchone()[0], 'submitted')

@@ -1,13 +1,16 @@
 """Explicit producer-requested correction without erasing completed history."""
 import copy
 import shutil
+from pathlib import Path
 
 from .io import inside, now, read, sha, write, event
 
 
 def revise_card(pipeline, key, note):
     pipeline.check_snapshot()
-    state, run = pipeline.state, pipeline.run
+    # inside() returns resolved paths. Use the same canonical root before any
+    # relative_to() calls, including Windows TEMP paths with 8.3 aliases.
+    state, run = pipeline.state, Path(pipeline.run).resolve()
     if not pipeline.quality_v2:raise ValueError('Targeted construction amendment requires a v2 project; legacy v1 contracts remain unchanged.')
     if state['status'] not in ('complete', 'completed_with_rejections') or not note.strip():
         raise ValueError('Targeted revision needs a completed run and the producer correction note.')
