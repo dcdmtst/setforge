@@ -11,7 +11,6 @@ from pathlib import Path
 from .io import inside,read,sha,write,locked
 from .acceptance import score
 from .nameplate import preflight,DEFAULT_POLICY
-from .ui_skin import measure_label
 from .naming import names,display_title
 
 
@@ -20,11 +19,13 @@ def presentation_fingerprint():
     from importlib.resources import files
     package=files('setforge')
     return hashlib.sha256(b''.join(package.joinpath(name).read_bytes() for name in
-        ('showcase.py','ui_skin.py','neutral_skin.py','rating_ui.py','defaults/ui/rating-stars.json'))).hexdigest()
+        ('showcase.py','ui_skin.py','neutral_skin.py','typography.py','rating_ui.py','defaults/ui/rating-stars.json'))).hexdigest()
 
 
 def result_manifest(run):
     run=Path(run).resolve();state=read(run/'state.json');brief=read(run/'inputs/brief.json')
+    from .typography import for_run
+    typography=for_run(run)
     expected=brief.get('variants',3)*10;groups=[];valid=0;errors=[]
     threshold=max(93.5,state.get('art_acceptance',{}).get('threshold',93.5))
     exports={a['key']:a for a in read(run/'exports/manifest.json')} if (run/'exports/manifest.json').exists() else {}
@@ -34,7 +35,7 @@ def result_manifest(run):
         for card in variant['cards']:card['title']=display_title(mapping,variant,card)
     notes=read(run/'presentation-naming-notes.json') if (run/'presentation-naming-notes.json').exists() else {}
     title_check=preflight(shown,{**DEFAULT_POLICY,**state.get('nameplate_policy',{}),
-                                'producer_flagged_labels':notes.get('producer_flagged_labels',[])},measure_label)
+                                'producer_flagged_labels':notes.get('producer_flagged_labels',[])},typography.measure_label)
     if title_check['verdict']!='pass':errors.append({'gate':'nameplate','failed_labels':title_check['failed_labels']})
     if state.get('discarded_cards') or state.get('discarded_sets'):errors.append({'gate':'discarded_content'})
     for variant in (state.get('plan') or {}).get('variants',[]):
@@ -82,6 +83,7 @@ def result_manifest(run):
     ready=(state['status']=='complete' and len(groups)==brief.get('variants',3)
            and all(len(g['cards'])==10 for g in groups) and valid==expected and not errors)
     return {'schema_version':1,'run_id':run.name,'status':state['status'],
+            'typography':typography.public_profile(),
             'full_delivery_ready':ready,'requested_variants':brief.get('variants',3),
             'expected_cards':expected,'accepted_cards':valid,'threshold':threshold,
             'theme':brief['theme'],'wishes':brief.get('wishes',''),'variants':groups,
@@ -146,7 +148,8 @@ def export_bundle(run,out=None):
                 if audit:display['producer_revision_summaries'][-1]['construction_review']=audit
             from .showcase import render
             from .timing import collect_timing,render_timing
-            render(stage,display,brief,audit_path=None)
+            from .typography import for_run
+            render(stage,display,brief,audit_path=None,typography=for_run(run))
             timing=collect_timing(run,state);write(stage/'timing-data.json',timing)
             timing_html=render_timing(run,state)
             # No private job requests or source references in the producer bundle.

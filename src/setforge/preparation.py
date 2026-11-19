@@ -194,9 +194,11 @@ def preflight_response(run, job_id, response):
             result['allocation'] = check('allocation_policy', lambda: allocation_check(response, context['allocation_policy']))
         if context.get('nameplate_policy'):
             from .nameplate import preflight
-            from .ui_skin import measure_label
+            from .typography import for_run
             def names():
-                report = preflight(response, context['nameplate_policy'], measure_label)
+                lettering=for_run(run,frozen=True)
+                report = preflight(response, context['nameplate_policy'], lettering.measure_label)
+                report['typography']=lettering.public_profile()
                 result['nameplate'] = report
                 if report['verdict'] != 'pass':
                     raise ValueError('English nameplate fit failed. Rewrite the title, then replace concept if needed; never shrink, crop, ellipsize or widen to fit.')

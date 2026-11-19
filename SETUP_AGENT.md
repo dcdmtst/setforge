@@ -47,6 +47,13 @@ continue below. Downloading code does not supply an image generator or reference
    `python -m setforge import-style --project .setforge/project --style-pack PACK`.
    Here and below, `python` means `.venv/Scripts/python.exe` on Windows or
    `.venv/bin/python` on macOS/Linux, not a global interpreter.
+   If the user requests the reference lettering, follow docs/typography.md:
+   locate their licensed Lithos Pro Black OTF/TTF or ask for its location, then run
+   `python -m setforge font-configure --project .setforge/project --font FONT_PATH`.
+   The font stays external to the checkout and delivery. Do not purchase it,
+   fetch unofficial copies, reconstruct a distributable font from screenshot
+   glyphs, or claim Lithos is configured when only neutral Aileron is available.
+   New orders pin its hash; existing orders require an explicit --run override.
 5. Start the page in a background process with stdout/stderr redirected to
    `.setforge/server.log`. The installation helper supports this directly:
    `SYSTEM_PYTHON scripts/setup.py --start --open`.

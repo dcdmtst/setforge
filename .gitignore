@@ -27,6 +27,10 @@ references/
 *.gif
 *.svg
 *.pdf
+*.otf
+*.ttf
+*.woff
+*.woff2
 *.zip
 *.sqlite*
 *.log

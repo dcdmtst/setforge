@@ -12,8 +12,15 @@ colors and five-star arc are preserved. Provenance and content hashes are in
 **excluded from the MIT license**; no third-party artwork rights are granted.
 Replace them with artwork you are entitled to distribute for other products.
 
-Lettering uses Pillow's bundled Aileron font through Pillow's API. The repository does not redistribute a font
-binary. Dependencies retain their own licenses, supplied by their packages:
+Lettering supports a user-supplied, locally licensed OTF/TTF, including Lithos Pro
+Black when available. Only the local path, actual family/style and content hash
+are recorded in private project/run configuration. The code never copies the
+font into a project, producer ZIP, wheel or source repository. Users need an
+appropriate license for their own desktop, server or application use. No font
+license is granted by this repository, and no raster alphabet is redistributed.
+Unconfigured/historical orders retain Pillow's bundled Aileron through Pillow's
+API; a configured missing font never silently falls back. Dependencies retain
+their own licenses, supplied by their packages:
 Pillow (HPND and bundled-component notices), jsonschema (MIT), setuptools (MIT),
 and optionally the OpenAI Python SDK (Apache-2.0). Consult the installed package
 notices when redistributing a bundled application or container.

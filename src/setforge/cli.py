@@ -58,6 +58,13 @@ def parser():
     style = sub.add_parser('import-style', help='Import local style references for future runs')
     style.add_argument('--project', type=Path, required=True)
     style.add_argument('--style-pack', type=Path, required=True)
+    lettering=sub.add_parser('font-configure',help='Use a licensed local OTF/TTF for labels and pixel-fit QA; font files are never copied')
+    font_target=lettering.add_mutually_exclusive_group(required=True)
+    font_target.add_argument('--project',type=Path)
+    font_target.add_argument('--run',type=Path)
+    font_choice=lettering.add_mutually_exclusive_group()
+    font_choice.add_argument('--font',type=Path)
+    font_choice.add_argument('--neutral',action='store_true')
     for name in ('generators', 'probe-generators'):
         generator = sub.add_parser(name, help='Inspect capabilities or prepare an optional agent-executed probe')
         generator.add_argument('--project', type=Path, required=True)
@@ -200,6 +207,7 @@ def parser():
     title_source.add_argument('--run',type=Path)
     title_source.add_argument('--plan',type=Path)
     titles.add_argument('--out',type=Path)
+    titles.add_argument('--project',type=Path,help='Font profile for --plan; --run uses its own saved typography')
     allocation = sub.add_parser('allocation-check', help='Check the approved pre-art category, stars and cast allocation')
     allocation.add_argument('--run', type=Path, required=True)
     select = sub.add_parser("select", help="Record the producer's final variant choice")
@@ -233,6 +241,8 @@ def parser():
 
 def doctor(project):
     config, refs = check_project(project)
+    from .typography import Lettering, project_profile
+    lettering=Lettering(project_profile(project))
     checks = []
     for role, provider in config["providers"].items():
         kind = provider["type"]
@@ -261,7 +271,7 @@ def doctor(project):
                        "external_worker_required": kind == "files", "issues": errors})
     return {"ready": all(c["ready"] for c in checks), "reference_count": len(refs),
             "requires_external_workers": any(c["external_worker_required"] for c in checks),
-            "providers": checks}
+            "providers": checks,"typography":lettering.public_profile()}
 
 
 def status(pipeline):
@@ -408,6 +418,9 @@ def publish_canon(args):
 def main(argv=None):
     args = parser().parse_args(argv)
     try:
+        if args.command=='font-configure':
+            from .typography import configure
+            output(configure(args.run or args.project,args.font,run=bool(args.run),neutral=args.neutral));return 0
         if args.command == 'import-style':
             from .stylepack import configure
             output(configure(args.project,args.style_pack));return 0
@@ -498,10 +511,12 @@ def main(argv=None):
         if args.command=='nameplate-check':
             import copy
             from .nameplate import preflight,DEFAULT_POLICY
-            from .ui_skin import measure_label
+            from .typography import for_run, Lettering, project_profile
             from .naming import names,display_title
             policy=dict(DEFAULT_POLICY)
             if args.run:
+                if args.project:raise ValueError('--project applies only to --plan, not --run.')
+                lettering=for_run(args.run)
                 state=read(args.run/'state.json');plan=copy.deepcopy(state.get('plan') or {'variants':[]})
                 policy.update(state.get('nameplate_policy',{}));mapping=names(args.run)
                 for v in plan['variants']:
@@ -509,8 +524,11 @@ def main(argv=None):
                     v['title']=display_title(mapping,v)
                 notes=args.run/'presentation-naming-notes.json'
                 if notes.exists():policy['producer_flagged_labels']=read(notes).get('producer_flagged_labels',[])
-            else:plan=read(args.plan)
-            result=preflight(plan,policy,measure_label)
+            else:
+                plan=read(args.plan)
+                lettering=Lettering(project_profile(args.project)) if args.project else Lettering()
+            result=preflight(plan,policy,lettering.measure_label)
+            result['typography']=lettering.public_profile()
             if args.out:write(args.out,result)
             output(result);return 0 if result['verdict']=='pass' else 2
         if args.command.startswith('refine-'):

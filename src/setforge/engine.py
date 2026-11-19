@@ -303,8 +303,10 @@ class Pipeline:
             check_allocation(plan, self.state['allocation_policy'])
         if self.state.get('nameplate_policy'):
             from .nameplate import preflight
-            from .ui_skin import measure_label
-            checked=preflight(plan,self.state['nameplate_policy'],measure_label)
+            from .typography import for_run
+            lettering=for_run(self.run,frozen=True)
+            checked=preflight(plan,self.state['nameplate_policy'],lettering.measure_label)
+            checked['typography']=lettering.public_profile()
             write(self.run/'nameplate-check.json',checked)
             job=getattr(self,'_active_job_id',None)
             if job:write(self.run/'jobs'/job/'nameplate-check.json',checked)

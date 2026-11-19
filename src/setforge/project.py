@@ -33,6 +33,8 @@ def init_project(project, materials=None):
 def check_project(project):
     project = Path(project).resolve()
     cfg = read(project / "project.json")
+    from .typography import Lettering, project_profile
+    Lettering(project_profile(project))
     contracts(cfg.get("schema_version", 1))
     refs = read(project / "references.json")
     if not refs:
@@ -125,6 +127,8 @@ def snapshot(project, run):
     write(run / "inputs" / "project.json", cfg)
     write(run / "inputs" / "references.json", refs)
     write(run / "inputs" / "canon.json", canon)
+    from .typography import project_profile
+    write(run/'inputs/typography.json',project_profile(project))
     shutil.copy2(project / "style.md", run / "inputs" / "style.md")
     if (project / "research").exists():
         shutil.copytree(project / "research", run / "inputs" / "research")

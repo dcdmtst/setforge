@@ -1,3 +1,3 @@
 """Setforge: file-first, provider-independent card collections."""
 
-__version__ = "0.9.3"
+__version__ = "0.9.4"

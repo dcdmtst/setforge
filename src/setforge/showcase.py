@@ -4,7 +4,7 @@ from pathlib import Path
 from urllib.parse import quote
 from .io import inside
 from .naming import names, display_title
-from .ui_skin import label_svg, star_svg, measure_label
+from .ui_skin import star_svg
 from .rating_ui import rating_group_svg
 from .nameplate import preflight, DEFAULT_POLICY
 from .timing import collect_timing, render_timing
@@ -52,14 +52,17 @@ def qualified_entities(state, key):
             and (entity.get('established_by') or entity.get('source_card_id')) == key]
 
 
-def label_review(run,state,mapping):
+def label_review(run,state,mapping,typography=None):
+    from .typography import for_run
+    typography=typography or for_run(run)
     shown=copy.deepcopy(state.get('plan') or {'variants':[]})
     for variant in shown['variants']:
         for card in variant['cards']:card['title']=display_title(mapping,variant,card)
         variant['title']=display_title(mapping,variant)
     note=read(run/'presentation-naming-notes.json') if (run/'presentation-naming-notes.json').exists() else {}
     policy={**DEFAULT_POLICY,'producer_flagged_labels':note.get('producer_flagged_labels',[])}
-    result=preflight(shown,policy,measure_label)
+    result=preflight(shown,policy,typography.measure_label)
+    result['typography']=typography.public_profile()
     write(run/'nameplate-report.json',result)
     failed=[x for x in result['labels'] if x['verdict']!='pass']
     esc=lambda x:html.escape(str(x),quote=True)
@@ -67,7 +70,7 @@ def label_review(run,state,mapping):
     if failed:
         body+='<p><b>Арт принят отдельно. Эти подписи ещё требуют правки:</b></p><table><thead><tr><th>Подпись</th><th>Ширина</th><th>Доступно</th><th>Статус</th></tr></thead><tbody>'+''.join(f'<tr><td>{esc(x["text"])}</td><td>{esc(x["measured_width"])} px</td><td>{x["available_width"]} px</td><td class="no">Требует правки</td></tr>' for x in failed)+'</tbody></table>'
     else:body+='<p>Строки помещаются при стандартном размере. Проверка узких окон дополнительно выполняется в браузере.</p>'
-    body+='</section><details class="ui-source"><summary>Оформление публичной версии</summary><p>'+STAR+' Звёзды взяты из исходного UI-референса: сохранены форма, цвет, размер относительно карты и готовые группы, включая дугу из пяти звёзд. Подписи используют встроенный в Pillow шрифт Aileron. Шрифт из игрового скриншота не распространяется. Английские названия проверяются в этом оформлении; при смене шрифта нужна повторная проверка. Локализации и loc QA — out of scope.</p></details>'
+    body+='</section><details class="ui-source"><summary>Оформление публичной версии</summary><p>'+STAR+' Звёзды взяты из исходного UI-референса: сохранены форма, цвет, размер относительно карты и готовые группы, включая дугу из пяти звёзд. Шрифт подписей: '+esc(typography.describe())+'. Подписи рисуются и измеряются одним рендерером. Файл шрифта не включается в HTML или ZIP. Английские названия проверяются в этом оформлении; при смене шрифта нужна повторная проверка. Локализации и loc QA — out of scope.</p></details>'
     return body,result
 
 CSS='''
@@ -124,7 +127,10 @@ requestAnimationFrame(inspect);
 document.fonts.ready.then(inspect);addEventListener('resize',inspect);new ResizeObserver(inspect).observe(document.querySelector('main'));
 })();</script>'''
 
-def render(run,state,brief,*,audit_path='audit.html',notice=''):
+def render(run,state,brief,*,audit_path='audit.html',notice='',typography=None):
+    from .typography import for_run
+    typography=typography or for_run(run)
+    label_svg=typography.label_svg
     run=Path(run);mapping=names(run)
     esc=lambda x:html.escape(str(x),quote=True)
     href=lambda x:quote(str(x).replace('\\','/'),safe='/.-_')
@@ -182,7 +188,7 @@ def render(run,state,brief,*,audit_path='audit.html',notice=''):
         page.append('<details class="metadata"><summary>Категории, редкость и приёмка</summary><table><thead><tr><th>Название</th><th>Звёзды</th><th>Категория</th><th>Тип</th><th>Приёмка</th></tr></thead><tbody>'+''.join(metadata)+'</tbody></table></details>')
         if v.get('wishes_response'):page.append(f'<details class="explain"><summary>Как учтены пожелания</summary><p>{esc(v["wishes_response"])}</p></details>')
         page.append('</section>')
-    labels,naming=label_review(run,state,mapping)
+    labels,naming=label_review(run,state,mapping,typography)
     page.append('</div>'+labels)
     page.append(f'<div class="footer"><p>{esc(acceptance_text(state))}</p><p>Переполнение помечается, а не скрывается уменьшением шрифта или обрезанием. Рамки, подписи и звёзды — отдельные слои просмотра; исходные иллюстрации сохранены.</p>')
     if state.get('status')=='complete' and not state.get('delivery_view'):
